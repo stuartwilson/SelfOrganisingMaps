@@ -18,27 +18,38 @@ using morph::RD_plot;
 template <class Flt>
 class Projection{
 
+/*
+	A projection class for connecting units on a source sheet to units on a destination sheet with topographically aligned weighted connections from a radius of units on the source sheet to each destination sheet unit.
+*/
+
 public:
 
     HexGrid* hgSrc;
     HexGrid* hgDst;
-    Flt radius;
-    Flt strength;
-    Flt alpha;
-    unsigned int nSrc, nDst;
+    Flt radius;					// radius within which connections are made
+    Flt strength;				// strength of projection - multiplication after dot products
+    Flt alpha;					// learning rate
+    unsigned int nSrc;				// number of units on source sheet
+    unsigned int nDst;				// number of unist on destination sheet
 
-    vector<int> counts;
-    vector<Flt> norms;
-    vector<vector<int> > srcId;
-    vector<vector<Flt> > weights, distances;
+    vector<unsigned int> counts;				// number of connections in connection field for each unit
+    vector<Flt> norms;				// 1./counts
+    vector<Flt> alphas;				// learning rates for each unit may depend on e.g., the number of connections
+    vector<vector<unsigned int> > srcId;			// identity of conneted units on the source sheet
+    vector<vector<Flt> > weights;		// connection weights
+    vector<vector<Flt> > distances;		// pre-compute distances between units in source and destination sheets
+    vector<Flt> field;				// current activity patterns
+    vector<Flt*> fSrc;				// pointers to the field elements on the source sheet
+    vector<Flt*> fDst;				// pointers to the field elements on the destination sheet
+    vector<double> weightPlot;			// for constructing activity plots
+    bool normalizeAlphas;			// whether to normalize learning rate by individual unit connection density	
 
-    vector<Flt> field;
 
-    vector<Flt*> fSrc;
-    vector<Flt*> fDst;
-    vector<double> weightPlot;
+    Projection(vector<Flt*> fSrc, vector<Flt*> fDst, HexGrid* hgSrc, HexGrid* hgDst, Flt radius, Flt strength, Flt alpha, Flt sigma, bool normalizeAlphas){
 
-    Projection(vector<Flt*> fSrc, vector<Flt*> fDst, HexGrid* hgSrc, HexGrid* hgDst, Flt radius, Flt strength, Flt alpha, Flt sigma){
+	/*
+		Initialise the class with random weights (if sigma>0, the weights have a Gaussian pattern, else uniform random)
+	*/
 
         this->fSrc = fSrc;
         this->fDst = fDst;
@@ -47,6 +58,7 @@ public:
         this->radius = radius;
         this->strength = strength;
         this->alpha = alpha;
+	this->normalizeAlphas = normalizeAlphas;
 
         nDst = hgDst->vhexen.size();
         nSrc = hgSrc->vhexen.size();
@@ -56,16 +68,18 @@ public:
         norms.resize(nDst);
         srcId.resize(nDst);
         weights.resize(nDst);
+        alphas.resize(nDst);
         distances.resize(nDst);
         weightPlot.resize(nSrc);
 
-        Flt radiusSquared = radius*radius;
+        Flt radiusSquared = radius*radius;	// precompute for speed
 
-        double OverTwoSigmaSquared = 1./(sigma*sigma*2.0);
+        double OverTwoSigmaSquared = 1./(sigma*sigma*2.0);	// precompute normalisation constant
 
+	// initialize connections for each destination sheet unit
     #pragma omp parallel for
-        for(int i=0;i<nDst;i++){
-            for(int j=0;j<nSrc;j++){
+        for(unsigned int i=0;i<nDst;i++){
+            for(unsigned int j=0;j<nSrc;j++){
                 Flt dx = (hgSrc->vhexen[j]->x-hgDst->vhexen[i]->x);
                 Flt dy = (hgSrc->vhexen[j]->y-hgDst->vhexen[i]->y);
                 Flt distSquared = dx*dx+dy*dy;
@@ -73,7 +87,7 @@ public:
                     counts[i]++;
                     srcId[i].push_back(j);
                     Flt w = 1.0;
-                    if(sigma>0.){
+                    if(sigma>0.){			
                         w = exp(-distSquared*OverTwoSigmaSquared);
                     }
                     weights[i].push_back(w);
@@ -81,51 +95,51 @@ public:
                 }
             }
             norms[i] = 1.0/(Flt)counts[i];
-        }
-    }
+            alphas[i] = alpha;
+	    if(normalizeAlphas){
+		alphas[i] *= norms[i];         
+	    }
 
-    void randomizeWeights(void){
-        #pragma omp parallel for
-        for(int i=0;i<nDst;i++){
-            for(int j=0;j<counts[i];j++){
-                weights[i][j] *= morph::Tools::randDouble();
-            }
-        }
+	}
     }
 
     void getWeightedSum(void){
-        {
+	/*
+		Dot product of each weight vector with the corresponding source sheet field values, multiplied by the strength of the projection
+	*/
 #pragma omp parallel for
-            for(int i=0;i<nDst;i++){
-                field[i] = 0.;
-                for(int j=0;j<counts[i];j++){
+    	for(unsigned int i=0;i<nDst;i++){
+        	field[i] = 0.;
+                for(unsigned int j=0;j<counts[i];j++){
                     field[i] += *fSrc[srcId[i][j]]*weights[i][j];
                 }
-                field[i] *= strength;
-            }
-        }
+        field[i] *= strength;
+    }
     }
 
     void learn(void){
+	/*
+	 Hebbian adaptation of the weights	
+	*/
     if(alpha>0.0){
     #pragma omp parallel for
-        for(int i=0;i<nDst;i++){
-            Flt a = alpha*norms[i];
-            for(int j=0;j<counts[i];j++){
-                weights[i][j] += *fSrc[srcId[i][j]] * *fDst[i] * a;
+        for(unsigned int i=0;i<nDst;i++){
+            for(unsigned int j=0;j<counts[i];j++){
+                weights[i][j] += *fSrc[srcId[i][j]] * *fDst[i] * alphas[i];
             }
         }
     }
     }
 
     void renormalize(void){
+
     #pragma omp parallel for
-        for(int i=0;i<nDst;i++){
+        for(unsigned int i=0;i<nDst;i++){
         Flt sumWeights = 0.0;
-            for(int j=0;j<counts[i];j++){
+            for(unsigned int j=0;j<counts[i];j++){
                 sumWeights += weights[i][j];
             }
-            for(int j=0;j<counts[i];j++){
+            for(unsigned int j=0;j<counts[i];j++){
                 weights[i][j] /= sumWeights;
             }
         }
@@ -133,7 +147,7 @@ public:
 
     void multiplyWeights(int i, double scale){
     #pragma omp parallel for
-        for(int j=0;j<counts[i];j++){
+        for(unsigned int j=0;j<counts[i];j++){
             weights[i][j] *= scale;
         }
     }
@@ -141,11 +155,11 @@ public:
     vector<double> getWeightPlot(int i){
 
         #pragma omp parallel for
-        for(int j=0;j<weightPlot.size();j++){
+        for(unsigned int j=0;j<weightPlot.size();j++){
             weightPlot[j] = 0.;
         }
         #pragma omp parallel for
-        for(int j=0;j<counts[i];j++){
+        for(unsigned int j=0;j<counts[i];j++){
             weightPlot[srcId[i][j]] = weights[i][j];
         }
         return weightPlot;
@@ -162,6 +176,7 @@ public:
     vector<Projection<Flt>> Projections;
     alignas(alignof(vector<Flt>)) vector<Flt> X;
     alignas(alignof(vector<Flt*>)) vector<Flt*> Xptr;
+    vector<vector<int> > P;			// identity of projections to (potentially) joint normalize
 
     virtual void init (void) {
         this->stepCount = 0;
@@ -176,8 +191,8 @@ public:
         }
     }
 
-    void addProjection(vector<Flt*> inXptr, HexGrid* hgSrc, float radius, float strength, float alpha, float sigma){
-        Projections.push_back(Projection<Flt>(inXptr, this->Xptr, hgSrc, this->hg, radius, strength, alpha, sigma));
+    void addProjection(vector<Flt*> inXptr, HexGrid* hgSrc, float radius, float strength, float alpha, float sigma, bool normalizeAlphas){
+        Projections.push_back(Projection<Flt>(inXptr, this->Xptr, hgSrc, this->hg, radius, strength, alpha, sigma, normalizeAlphas));
     }
 
     void zero_X (void) {
@@ -185,6 +200,39 @@ public:
         for (unsigned int hi=0; hi<this->nhex; ++hi) {
             this->X[hi] = 0.;
         }
+    }
+
+    void setNormalize(vector<int> proj){
+	for(unsigned int p=0; p<proj.size();p++){
+		for(unsigned int i=0; i<this->P.size();i++){
+			for(unsigned int j=0; j<this->P[i].size();j++){
+				if(proj[p]==this->P[i][j]){
+					cout<<"Caution - projection may be mutiply joint normalized"<<endl;
+				}
+			}
+		}
+	}	
+        this->P.push_back(proj);
+    }
+
+ void renormalize(void){
+
+	for(unsigned int proj=0;proj<this->P.size();proj++){
+    #pragma omp parallel for
+        for(unsigned int i=0;i<this->nhex;i++){
+            Flt sumWeights = 0.0;
+            for(unsigned int p=0;p<this->P[proj].size();p++){
+                for(unsigned int j=0;j<this->Projections[this->P[proj][p]].counts[i];j++){
+                    sumWeights += this->Projections[this->P[proj][p]].weights[i][j];
+                }
+            }
+            for(unsigned int p=0;p<this->P[proj].size();p++){
+                for(unsigned int j=0;j<this->Projections[this->P[proj][p]].counts[i];j++){
+                    this->Projections[this->P[proj][p]].weights[i][j] /= sumWeights;
+                }
+            }
+        }
+}
     }
 
 };
@@ -203,11 +251,11 @@ Flt strength;
     virtual void step (void) {
         this->stepCount++;
         this->zero_X();
-        for(int i=0;i<this->Projections.size();i++){
+        for(unsigned int i=0;i<this->Projections.size();i++){
             this->Projections[i].getWeightedSum();
         }
 
-        for(int i=0;i<this->Projections.size();i++){
+        for(unsigned int i=0;i<this->Projections.size();i++){
             #pragma omp parallel for
             for (unsigned int hi=0; hi<this->nhex; ++hi) {
                 this->X[hi] += this->Projections[i].field[hi];
@@ -227,16 +275,17 @@ class CortexSOM : public RD_Sheet<Flt>
 {
     public:
 
-    Flt beta, lambda, mu, oneMinusBeta;
+    Flt beta, lambda, mu, oneMinusBeta, thetaInit;
 
     alignas(alignof(vector<Flt>)) vector<Flt> Xavg;
     alignas(alignof(vector<Flt>)) vector<Flt> Theta;
 
 
-    CortexSOM(Flt beta, Flt lambda, Flt mu){
+    CortexSOM(Flt beta, Flt lambda, Flt mu, Flt thetaInit){
         this->beta = beta;
         this->lambda = lambda;
         this->mu = mu;
+	this->thetaInit = thetaInit;
         oneMinusBeta = (1.-beta);
     }
 
@@ -257,25 +306,7 @@ class CortexSOM : public RD_Sheet<Flt>
         }
         for (unsigned int hi=0; hi<this->nhex; ++hi) {
             this->Xavg[hi] = mu;
-            this->Theta[hi] = 0.;
-        }
-    }
-
-    void renormalize(vector<int> P){
-
-    #pragma omp parallel for
-        for(int i=0;i<this->nhex;i++){
-            Flt sumWeights = 0.0;
-            for(int p=0;p<P.size();p++){
-                for(int j=0;j<this->Projections[P[p]].counts[i];j++){
-                    sumWeights += this->Projections[P[p]].weights[i][j];
-                }
-            }
-            for(int p=0;p<P.size();p++){
-                for(int j=0;j<this->Projections[P[p]].counts[i];j++){
-                    this->Projections[P[p]].weights[i][j] /= sumWeights;
-                }
-            }
+            this->Theta[hi] = thetaInit;
         }
     }
 
@@ -283,11 +314,11 @@ class CortexSOM : public RD_Sheet<Flt>
     virtual void step (void) {
         this->stepCount++;
 
-        for(int i=0;i<this->Projections.size();i++){
+        for(unsigned int i=0;i<this->Projections.size();i++){
             this->Projections[i].getWeightedSum();
         }
 
-        for(int i=0;i<this->Projections.size();i++){
+        for(unsigned int i=0;i<this->Projections.size();i++){
         #pragma omp parallel for
             for (unsigned int hi=0; hi<this->nhex; ++hi) {
                 this->X[hi] += this->Projections[i].field[hi];
@@ -373,13 +404,16 @@ int main(int argc, char **argv){
 
     // GET PARAMS FROM JSON
 
+    const bool homeostasis = root.get ("homeostasis", true).asBool();
+
     const unsigned int steps = root.get ("steps", 1000).asUInt();
     const unsigned int settle = root.get ("settle", 16).asUInt();
 
     // homeostasis
     const float beta = root.get ("beta", 0.991).asFloat();
     const float lambda = root.get ("lambda", 0.01).asFloat();
-    const float mu = root.get ("mu", 0.024).asFloat();
+    const float mu = root.get ("thetaInit", 0.15).asFloat();
+    const float thetaInit = root.get ("mu", 0.024).asFloat();
     const float xRange = root.get ("xRange", 2.0).asFloat();
     const float yRange = root.get ("yRange", 2.0).asFloat();
 
@@ -426,9 +460,9 @@ int main(int argc, char **argv){
     LGN_ON.init();
     LGN_ON.allocate();
 
-    LGN_ON.addProjection(IN.Xptr, IN.hg, afferRadius, +LGNstrength, 0.0, LGNCenterSigma);
-    LGN_ON.addProjection(IN.Xptr, IN.hg, afferRadius, -LGNstrength, 0.0, LGNSurroundSigma);
-    for(int i=0;i<LGN_ON.Projections.size();i++){
+    LGN_ON.addProjection(IN.Xptr, IN.hg, afferRadius, +LGNstrength, 0.0, LGNCenterSigma, false);
+    LGN_ON.addProjection(IN.Xptr, IN.hg, afferRadius, -LGNstrength, 0.0, LGNSurroundSigma, false);
+    for(unsigned int i=0;i<LGN_ON.Projections.size();i++){
         LGN_ON.Projections[i].renormalize();
     }
 
@@ -437,36 +471,33 @@ int main(int argc, char **argv){
     LGN_OFF.init();
     LGN_OFF.allocate();
 
-    LGN_OFF.addProjection(IN.Xptr, IN.hg, afferRadius, -LGNstrength, 0.0, LGNCenterSigma);
-    LGN_OFF.addProjection(IN.Xptr, IN.hg, afferRadius, +LGNstrength, 0.0, LGNSurroundSigma);
+    LGN_OFF.addProjection(IN.Xptr, IN.hg, afferRadius, -LGNstrength, 0.0, LGNCenterSigma, false);
+    LGN_OFF.addProjection(IN.Xptr, IN.hg, afferRadius, +LGNstrength, 0.0, LGNSurroundSigma, false);
 
-    for(int i=0;i<LGN_OFF.Projections.size();i++){
+    for(unsigned int i=0;i<LGN_OFF.Projections.size();i++){
         LGN_OFF.Projections[i].renormalize();
     }
 
     // CORTEX SHEET
-    CortexSOM<double> CX(beta, lambda, mu);
+    CortexSOM<double> CX(beta, lambda, mu, thetaInit);
     CX.svgpath = root.get ("CX_svgpath", "boundaries/trialmod.svg").asString();
     CX.init();
     CX.allocate();
 
-    CX.addProjection(LGN_ON.Xptr, LGN_ON.hg, afferRadius, afferStrength*0.5, afferAlpha, afferSigma);
-    CX.addProjection(LGN_OFF.Xptr, LGN_OFF.hg, afferRadius, afferStrength*0.5, afferAlpha, afferSigma);
-    CX.addProjection(CX.Xptr, CX.hg, excitRadius, excitStrength, excitAlpha, excitSigma);
-    CX.addProjection(CX.Xptr, CX.hg, inhibRadius, inhibStrength, inhibAlpha, inhibSigma);
+    CX.addProjection(LGN_ON.Xptr, LGN_ON.hg, afferRadius, afferStrength*0.5, afferAlpha, afferSigma, false);
+    CX.addProjection(LGN_OFF.Xptr, LGN_OFF.hg, afferRadius, afferStrength*0.5, afferAlpha, afferSigma, false);
+    CX.addProjection(CX.Xptr, CX.hg, excitRadius, excitStrength, excitAlpha, excitSigma, false);
+    CX.addProjection(CX.Xptr, CX.hg, inhibRadius, inhibStrength, inhibAlpha, inhibSigma, false);
 
-    CX.Projections[0].randomizeWeights();
-    CX.Projections[1].randomizeWeights();
-    CX.Projections[3].randomizeWeights();
+    // SETUP FIELDS FOR JOINT NORMALIZATION
+    vector<int> p1(2,0);
+    p1[1] = 1;
+    CX.setNormalize(p1);
+    CX.setNormalize(vector<int>(1,2));
+    CX.setNormalize(vector<int>(1,3));
+    CX.renormalize();
 
-    vector<vector<int> > JointNorms;
-    JointNorms.push_back(vector<int> (2,0));
-    JointNorms[0][1]=1;
-    JointNorms.push_back(vector<int> (1,2));
-    JointNorms.push_back(vector<int> (1,3));
-    for(int p=0;p<JointNorms.size();p++){
-        CX.renormalize(JointNorms[p]);
-    }
+
 
     vector<double> fix(3, 0.0);
     RD_plot<double> plt(fix,fix,fix);
@@ -477,12 +508,12 @@ int main(int argc, char **argv){
     displays.push_back(morph::Gdisplay(1200, 400, 0, 0, "Cortical Projection", 1.7, 0.0, 0.0));
     displays.push_back(morph::Gdisplay(600, 300, 0, 0, "LGN ON/OFF", 1.7, 0.0, 0.0));
 
-    for(int i=0;i<displays.size();i++){
+    for(unsigned int i=0;i<displays.size();i++){
         displays[i].resetDisplay (fix,fix,fix);
         displays[i].redrawDisplay();
     }
 
-    for( int i=0;i<steps;i++){
+    for(unsigned int i=0;i<steps;i++){
         IN.GeneratePattern(
                         (morph::Tools::randDouble()-0.5)*xRange,
                         (morph::Tools::randDouble()-0.5)*yRange,
@@ -496,20 +527,19 @@ int main(int argc, char **argv){
         L.push_back(LGN_OFF.X);
         plt.scalarfields (displays[3], LGN_ON.hg, L);
         CX.zero_X();
-        for( int j=0;j<settle;j++){
+        for(unsigned int j=0;j<settle;j++){
             CX.step();
             plt.scalarfields (displays[1], CX.hg, CX.X);
         }
 
-        for(int p=0;p<CX.Projections.size();p++){
+        for(unsigned int p=0;p<CX.Projections.size();p++){
             CX.Projections[p].learn();
         }
 
-        for(int p=0;p<JointNorms.size();p++){
-           CX.renormalize(JointNorms[p]);
-        }
-        CX.homeostasis();
-
+        CX.renormalize();
+	if (homeostasis){
+        	CX.homeostasis();
+	}
         vector<vector<double> > W;
         W.push_back(CX.Projections[0].getWeightPlot(500));
         W.push_back(CX.Projections[1].getWeightPlot(500));
@@ -519,7 +549,7 @@ int main(int argc, char **argv){
         cout<<"iterations: "<<i<<endl;
     }
 
-    for(int i=0;i<displays.size();i++){
+    for(unsigned int i=0;i<displays.size();i++){
         displays[i].closeDisplay();
     }
 
