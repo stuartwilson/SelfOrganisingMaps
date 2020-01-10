@@ -318,6 +318,11 @@ class CortexSOM : public RD_Sheet<Flt>
             this->Projections[i].getWeightedSum();
         }
 
+        #pragma omp parallel for
+        for (unsigned int hi=0; hi<this->nhex; ++hi) {
+            this->X[hi] = 0.;
+        }
+
         for(unsigned int i=0;i<this->Projections.size();i++){
         #pragma omp parallel for
             for (unsigned int hi=0; hi<this->nhex; ++hi) {
