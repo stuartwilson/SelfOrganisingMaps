@@ -13,7 +13,7 @@
 using namespace morph;
 using namespace std;
 
-using morph::RD_plot;
+using morph::RD_Plot;
 
 template <class Flt>
 class Projection{
@@ -500,7 +500,7 @@ int main(int argc, char **argv){
 
 
     vector<double> fix(3, 0.0);
-    RD_plot<double> plt(fix,fix,fix);
+    RD_Plot<double> plt(fix,fix,fix);
 
     vector<morph::Gdisplay> displays;
     displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Input Activity", 1.7, 0.0, 0.0));
