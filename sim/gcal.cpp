@@ -30,7 +30,7 @@ public:
     Flt strength;				// strength of projection - multiplication after dot products
     Flt alpha;					// learning rate
     unsigned int nSrc;				// number of units on source sheet
-    unsigned int nDst;				// number of unist on destination sheet
+    unsigned int nDst;				// number of units on destination sheet
 
     vector<unsigned int> counts;				// number of connections in connection field for each unit
     vector<Flt> norms;				// 1./counts
@@ -318,10 +318,7 @@ class CortexSOM : public RD_Sheet<Flt>
             this->Projections[i].getWeightedSum();
         }
 
-        #pragma omp parallel for
-        for (unsigned int hi=0; hi<this->nhex; ++hi) {
-            this->X[hi] = 0.;
-        }
+        this->zero_X();
 
         for(unsigned int i=0;i<this->Projections.size();i++){
         #pragma omp parallel for
@@ -501,8 +498,6 @@ int main(int argc, char **argv){
     CX.setNormalize(vector<int>(1,2));
     CX.setNormalize(vector<int>(1,3));
     CX.renormalize();
-
-
 
     vector<double> fix(3, 0.0);
     RD_Plot<double> plt(fix,fix,fix);
