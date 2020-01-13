@@ -13,6 +13,36 @@ using namespace std;
 
 using morph::RD_Plot;
 
+
+class Network{
+
+    /*
+        High-level wrapper for specifying a network so that a simulation can be built by calling the methods (e.g., step/map) in a given order.
+    */
+
+    public:
+        int time;
+
+    Network(void){
+        time = 0;
+    };
+
+    virtual void init(Json::Value){
+
+    }
+
+    virtual void step(void){
+
+    }
+
+    virtual void map(void){
+
+    }
+
+};
+
+
+
 template <class Flt>
 class Projection{
 
@@ -95,7 +125,7 @@ public:
             norms[i] = 1.0/(Flt)counts[i];
             alphas[i] = alpha;
         if(normalizeAlphas){
-        alphas[i] *= norms[i];
+            alphas[i] *= norms[i];
         }
 
     }
@@ -240,10 +270,10 @@ class LGN : public RD_Sheet<Flt>
 {
 
 public:
-Flt strength;
+    Flt strength;
 
-    LGN(Flt strength){
-        this->strength = strength;
+    LGN(void){
+        this->strength = 1.0;
     }
 
     virtual void step (void) {
@@ -278,16 +308,22 @@ class CortexSOM : public RD_Sheet<Flt>
     alignas(alignof(vector<Flt>)) vector<Flt> Xavg;
     alignas(alignof(vector<Flt>)) vector<Flt> Theta;
 
+    CortexSOM(void){
 
-    CortexSOM(Flt beta, Flt lambda, Flt mu, Flt thetaInit){
+    }
+
+    /*
+    void init (Flt beta, Flt lambda, Flt mu, Flt thetaInit){
         this->beta = beta;
         this->lambda = lambda;
         this->mu = mu;
-    this->thetaInit = thetaInit;
-        oneMinusBeta = (1.-beta);
+        this->thetaInit = thetaInit;
+
     }
+    */
 
     virtual void init (void) {
+        oneMinusBeta = (1.-beta);
         this->stepCount = 0;
         this->zero_vector_variable (this->X);
         this->zero_vector_variable (this->Xavg);
@@ -334,6 +370,32 @@ class CortexSOM : public RD_Sheet<Flt>
         }
     }
 
+virtual void step2 (void) {
+        this->stepCount++;
+
+        for(unsigned int i=0;i<this->Projections.size();i++){
+            this->Projections[i].getWeightedSum();
+        }
+
+        this->zero_X();
+
+        for(unsigned int i=0;i<2;i++){
+        #pragma omp parallel for
+            for (unsigned int hi=0; hi<this->nhex; ++hi) {
+                this->X[hi] += this->Projections[i].field[hi];
+            }
+        }
+
+        #pragma omp parallel for
+        for (unsigned int hi=0; hi<this->nhex; ++hi) {
+            this->X[hi] = this->X[hi]-this->Theta[hi];
+            if(this->X[hi]<0.0){
+                this->X[hi] = 0.0;
+            }
+        }
+    }
+
+
     void homeostasis(void){
 
      #pragma omp parallel for
@@ -351,16 +413,17 @@ class CortexSOM : public RD_Sheet<Flt>
 };
 
 template <class Flt>
-class GaussianOriented_Sheet : public RD_Sheet<Flt>
+class PatternGenerator_Sheet : public RD_Sheet<Flt>
 {
 public:
-    GaussianOriented_Sheet(){ }
+    PatternGenerator_Sheet(){ }
 
     virtual void step (void) {
         this->stepCount++;
     }
 
-    void GeneratePattern(double x_center, double y_center, double theta, double sigmaA, double sigmaB){
+    void Gaussian(double x_center, double y_center, double theta, double sigmaA, double sigmaB){
+
         double cosTheta = cos(theta);
         double sinTheta = sin(theta);
         double overSigmaA = 1./sigmaA;
@@ -373,6 +436,23 @@ public:
                               -((dx*sinTheta+dy*cosTheta)*(dx*sinTheta+dy*cosTheta))*overSigmaB);
         }
     }
+
+
+    void Grating(double theta, double phase, double width, double amplitude){
+
+        double cosTheta = cos(theta);
+        double sinTheta = sin(theta);
+
+        #pragma omp parallel for
+        for (unsigned int hi=0; hi<this->nhex; ++hi) {
+
+            this->X[hi] = sin( width * (this->hg->vhexen[hi]->x*sinTheta + this->hg->vhexen[hi]->y*cosTheta + phase) );
+
+                //(dx*cosTheta-dy*sinTheta)
+
+        }
+    }
+
 
 };
 
