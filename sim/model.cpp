@@ -16,6 +16,27 @@
 using namespace morph;
 using namespace std;
 
+double getMax(vector<double> x){
+
+    double maxVal = -1e9;
+    for(int i=0;i<x.size();i++){
+        if(x[i]>maxVal){
+            maxVal = x[i];
+        }
+    }
+    return maxVal;
+}
+
+double getMin(vector<double> x){
+
+    double minVal = 1e9;
+    for(int i=0;i<x.size();i++){
+        if(x[i]<minVal){
+            minVal = x[i];
+        }
+    }
+    return minVal;
+}
 
 
 class gcal : Network {
@@ -36,7 +57,7 @@ class gcal : Network {
     gcal(void){
         plotSettling = false;
     }
-    
+
     void init(Json::Value root){
 
         displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Input Activity", 1.7, 0.0, 0.0));
@@ -279,16 +300,20 @@ class gcal : Network {
         }
         vector<double> pref(maxValOr.size(),0.);
         vector<double> sel(maxValOr.size(),0.);
+        double maxSel = -1e9;
         for(int i=0;i<maxValOr.size();i++){
-            pref[i] = 0.5*atan2(Vy[i],Vx[i]);
+            pref[i] = 0.5*(atan2(Vy[i],Vx[i])+M_PI);
             sel[i] = sqrt(Vy[i]*Vy[i]+Vx[i]*Vx[i]);
+            if(sel[i]>maxSel){ maxSel = sel[i];}
         }
 
         displays[4].resetDisplay(fix,fix,fix);
+
         int i=0;
         for (auto h : CX.hg->hexen) {
-            double hue = (float)pref[i]+M_PI;
-            double val = (float)sel[i];
+            double hue = pref[i]/M_PI;
+            //double hue = ((float)pref[i]/(2.*M_PI));
+            double val = sel[i]/maxSel;
             array<float, 3> cl = morph::Tools::HSVtoRGB (hue, 1.0, val);
             displays[4].drawHex (h.position(), array<float, 3>{0.,0.,0.}, (h.d/2.0f), cl);
             i++;
