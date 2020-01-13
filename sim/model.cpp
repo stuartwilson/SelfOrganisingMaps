@@ -312,7 +312,6 @@ class gcal : Network {
         int i=0;
         for (auto h : CX.hg->hexen) {
             double hue = pref[i]/M_PI;
-            //double hue = ((float)pref[i]/(2.*M_PI));
             double val = sel[i]/maxSel;
             array<float, 3> cl = morph::Tools::HSVtoRGB (hue, 1.0, val);
             displays[4].drawHex (h.position(), array<float, 3>{0.,0.,0.}, (h.d/2.0f), cl);
@@ -321,6 +320,28 @@ class gcal : Network {
         displays[4].redrawDisplay();
         stringstream ss; ss << "map_" << time << ".png";
         displays[4].saveImage(ss.str());
+
+    }
+
+    void save(string filename){
+        stringstream fname; fname << filename;
+        HdfData data(fname.str());
+        for(unsigned int p=0;p<CX.Projections.size();p++){
+            vector<double> proj = CX.Projections[p].getWeights();
+            stringstream ss; ss<<"proj_"<<p;
+            data.add_contained_vals (ss.str().c_str(), proj);
+        }
+    }
+
+    void load(string filename){
+        stringstream fname; fname << filename;
+        HdfData data(fname.str(),1);
+        for(unsigned int p=0;p<CX.Projections.size();p++){
+            vector<double> proj;
+            stringstream ss; ss<<"proj_"<<p;
+            data.read_contained_vals (ss.str().c_str(), proj);
+            CX.Projections[p].setWeights(proj);
+        }
 
     }
 
@@ -364,8 +385,6 @@ int main(int argc, char **argv){
     bool parsingSuccessful = Json::parseFromStream (rbuilder, jsonfile, &root, &errs);
     if (!parsingSuccessful) { cerr << "Failed to parse JSON: " << errs; return 1; }
 
-
-
     unsigned int nBlocks = root.get ("blocks", 100).asUInt();
     unsigned int steps = root.get ("steps", 100).asUInt();
 
@@ -376,11 +395,15 @@ int main(int argc, char **argv){
 
     for(int b=0;b<nBlocks;b++){
 
+        //Net.load("weights.h5");
+
         Net.map();
 
         for(unsigned int i=0;i<steps;i++){
             Net.step();
         }
+
+        Net.save("weights.h5");
 
     }
 

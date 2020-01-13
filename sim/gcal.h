@@ -159,6 +159,26 @@ public:
     }
     }
 
+    vector<Flt> getWeights(void){
+        vector<Flt> weightStore;
+        for(unsigned int i=0;i<nDst;i++){
+            for(unsigned int j=0;j<counts[i];j++){
+                weightStore.push_back(weights[i][j]);
+            }
+        }
+        return weightStore;
+    }
+
+    void setWeights(vector<Flt> weightStore){
+        int k=0;
+        for(unsigned int i=0;i<nDst;i++){
+            for(unsigned int j=0;j<counts[i];j++){
+                weights[i][j] = weightStore[k];
+                k++;
+            }
+        }
+    }
+
     void renormalize(void){
 
     #pragma omp parallel for
