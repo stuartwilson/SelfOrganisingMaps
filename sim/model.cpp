@@ -3,51 +3,23 @@
 #include <utility>
 #include <iostream>
 #include <unistd.h>
-
 #include "morph/HexGrid.h"
 #include "morph/ReadCurves.h"
-
 #include "morph/RD_Base.h"
 #include "morph/RD_Plot.h"
-
 #include "gcal.h"
-
 
 using namespace morph;
 using namespace std;
 
-double getMax(vector<double> x){
-
-    double maxVal = -1e9;
-    for(int i=0;i<x.size();i++){
-        if(x[i]>maxVal){
-            maxVal = x[i];
-        }
-    }
-    return maxVal;
-}
-
-double getMin(vector<double> x){
-
-    double minVal = 1e9;
-    for(int i=0;i<x.size();i++){
-        if(x[i]<minVal){
-            minVal = x[i];
-        }
-    }
-    return minVal;
-}
-
-
-class gcal : Network {
+class gcal : public Network {
 
     public:
 
-        vector<morph::Gdisplay> displays;
         PatternGenerator_Sheet<double> IN;
         LGN<double> LGN_ON, LGN_OFF;
         CortexSOM<double> CX;
-
+        vector<double> pref, sel;
         bool homeostasis, plotSettling;
         unsigned int settle;
         float beta, lambda, mu, thetaInit, xRange, yRange, afferAlpha, excitAlpha, inhibAlpha;
@@ -60,20 +32,8 @@ class gcal : Network {
 
     void init(Json::Value root){
 
-        displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Input Activity", 1.7, 0.0, 0.0));
-        displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Cortical Activity", 1.7, 0.0, 0.0));
-        displays.push_back(morph::Gdisplay(1200, 400, 0, 0, "Cortical Projection", 1.7, 0.0, 0.0));
-        displays.push_back(morph::Gdisplay(600, 300, 0, 0, "LGN ON/OFF", 1.7, 0.0, 0.0));
-        displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Map", 1.7, 0.0, 0.0));
-
-        for(unsigned int i=0;i<displays.size();i++){
-            displays[i].resetDisplay (vector<double>(3,0),vector<double>(3,0),vector<double>(3,0));
-            displays[i].redrawDisplay();
-        }
-
         // GET PARAMS FROM JSON
         homeostasis = root.get ("homeostasis", true).asBool();
-
         settle = root.get ("settle", 16).asUInt();
 
         // homeostasis
@@ -116,7 +76,6 @@ class gcal : Network {
         HdfData data(fname.str());
 
         // INPUT SHEET
-
         IN.svgpath = root.get ("IN_svgpath", "boundaries/trialmod.svg").asString();
         IN.init();
         IN.allocate();
@@ -167,99 +126,101 @@ class gcal : Network {
         CX.setNormalize(vector<int>(1,3));
         CX.renormalize();
 
+        pref.resize(CX.nhex,0.);
+        sel.resize(CX.nhex,0.);
+
     }
 
-    void step(){
-
+    void stepAfferent(void){
         IN.Gaussian(
             (morph::Tools::randDouble()-0.5)*xRange,
             (morph::Tools::randDouble()-0.5)*yRange,
             morph::Tools::randDouble()*M_PI, sigmaA,sigmaB);
-
         LGN_ON.step();
         LGN_OFF.step();
-
-        CX.zero_X();
-        for(unsigned int j=0;j<settle;j++){
-            CX.step();
-        }
-
-        for(unsigned int p=0;p<CX.Projections.size();p++){
-            CX.Projections[p].learn();
-        }
-
-        CX.renormalize();
-        if (homeostasis){
-                CX.homeostasis();
-        }
-
-        time++;
-
-        cout<<"iterations: "<<time<<endl;
-
     }
 
-    void stepPlot(void){
-
-        vector<double> fix(3,0.);
-        RD_Plot<double> plt(fix,fix,fix);
-
-        IN.Gaussian(
-            (morph::Tools::randDouble()-0.5)*xRange,
-            (morph::Tools::randDouble()-0.5)*yRange,
-            morph::Tools::randDouble()*M_PI, sigmaA,sigmaB);
-
-        plt.scalarfields (displays[0], IN.hg, IN.X, 0., 1.0);
-
-        LGN_ON.step();
-        LGN_OFF.step();
+    void plotAfferent(morph::Gdisplay disp1, morph::Gdisplay disp2){
+        vector<double> fx(3,0.); RD_Plot<double> plt(fx,fx,fx);
+        plt.scalarfields (disp1, IN.hg, IN.X, 0., 1.0);
         vector<vector<double> > L;
-
         L.push_back(LGN_ON.X);
         L.push_back(LGN_OFF.X);
-        plt.scalarfields (displays[3], LGN_ON.hg, L);
+        plt.scalarfields (disp2, LGN_ON.hg, L);
+    }
 
+    void stepCortex(void){
         CX.zero_X();
         for(unsigned int j=0;j<settle;j++){
             CX.step();
-            plt.scalarfields (displays[1], CX.hg, CX.X);
         }
-
-        for(unsigned int p=0;p<CX.Projections.size();p++){
-            CX.Projections[p].learn();
-        }
-
+        for(unsigned int p=0;p<CX.Projections.size();p++){ CX.Projections[p].learn(); }
         CX.renormalize();
-        if (homeostasis){
-                CX.homeostasis();
-        }
-
-        vector<vector<double> > W;
-        W.push_back(CX.Projections[0].getWeightPlot(500));
-        W.push_back(CX.Projections[1].getWeightPlot(500));
-        W.push_back(CX.Projections[3].getWeightPlot(500));
-        plt.scalarfields (displays[2], CX.hg, W);
-
+        if (homeostasis){ CX.homeostasis(); }
         time++;
-
         cout<<"iterations: "<<time<<endl;
+    }
+
+    void stepCortex(morph::Gdisplay disp){
+        vector<double> fx(3,0.); RD_Plot<double> plt(fx,fx,fx);
+        CX.zero_X();
+        for(unsigned int j=0;j<settle;j++){
+            CX.step();
+            plt.scalarfields (disp, CX.hg, CX.X);
+        }
+        for(unsigned int p=0;p<CX.Projections.size();p++){ CX.Projections[p].learn(); }
+        CX.renormalize();
+        if (homeostasis){ CX.homeostasis(); }
+        time++;
+        cout<<"iterations: "<<time<<endl;
+    }
+
+    void plotWeights(morph::Gdisplay disp, int id){
+        vector<double> fix(3,0.);
+        RD_Plot<double> plt(fix,fix,fix);
+        vector<vector<double> > W;
+        W.push_back(CX.Projections[0].getWeightPlot(id));
+        W.push_back(CX.Projections[1].getWeightPlot(id));
+        W.push_back(CX.Projections[3].getWeightPlot(id));
+        plt.scalarfields (disp, CX.hg, W);
+    }
+
+    void plotMap(morph::Gdisplay disp){
+
+        disp.resetDisplay(vector<double> (3,0.),vector<double> (3,0.),vector<double> (3,0.));
+
+        double maxSel = -1e9;
+        for(int i=0;i<CX.nhex;i++){
+            if(sel[i]>maxSel){ maxSel = sel[i];}
+        }
+        maxSel = 1./maxSel;
+        double overPi = 1./M_PI;
+
+        int i=0;
+        for (auto h : CX.hg->hexen) {
+            array<float, 3> cl = morph::Tools::HSVtoRGB (pref[i]*overPi, 1.0, sel[i]*maxSel);
+            disp.drawHex (h.position(), array<float, 3>{0.,0.,0.}, (h.d*0.5f), cl);
+            i++;
+        }
+        disp.redrawDisplay();
+        stringstream ss; ss << "map_" << time << ".png";
+        disp.saveImage(ss.str());
 
     }
 
     void map (void){
 
-        vector<double> fix(3,0.);
-        RD_Plot<double> plt(fix,fix,fix);
-
         int nOr=20;
         int nPhase=8;
+        double phaseInc = M_PI/(double)nPhase;
 
-        vector<int> maxIndOr(CX.X.size(),0);
-        vector<double> maxValOr(CX.X.size(),-1e9);
-        vector<double> maxPhase(CX.X.size());
+        vector<int> maxIndOr(CX.nhex,0);
+        vector<double> maxValOr(CX.nhex,-1e9);
+        vector<double> maxPhase(CX.nhex,0.);
+        vector<double> Vx(CX.nhex);
+        vector<double> Vy(CX.nhex);
 
-        vector<double> Vx(CX.X.size());
-        vector<double> Vy(CX.X.size());
+        vector<int> aff(2,0); aff[1]=1;
 
         for(unsigned int i=0;i<nOr;i++){
 
@@ -268,18 +229,12 @@ class gcal : Network {
             std::fill(maxPhase.begin(),maxPhase.end(),-1e9);
 
             for(unsigned int j=0;j<nPhase;j++){
-                double phase = j*M_PI/(double)nPhase;
+                double phase = j*phaseInc;
                 IN.Grating(theta,phase,30.0,1.0);
-                plt.scalarfields (displays[0], IN.hg, IN.X, 0., 1.0);
                 LGN_ON.step();
                 LGN_OFF.step();
-                vector<vector<double> > L;
-                L.push_back(LGN_ON.X);
-                L.push_back(LGN_OFF.X);
-                plt.scalarfields (displays[3], LGN_ON.hg, L);
                 CX.zero_X();
-                CX.step2();
-                plt.scalarfields (displays[1], CX.hg, CX.X);
+                CX.step(aff);
                 for(int k=0;k<maxPhase.size();k++){
                     if(maxPhase[k]<CX.X[k]){ maxPhase[k] = CX.X[k]; }
                 }
@@ -298,28 +253,12 @@ class gcal : Network {
             }
 
         }
-        vector<double> pref(maxValOr.size(),0.);
-        vector<double> sel(maxValOr.size(),0.);
-        double maxSel = -1e9;
+
         for(int i=0;i<maxValOr.size();i++){
             pref[i] = 0.5*(atan2(Vy[i],Vx[i])+M_PI);
             sel[i] = sqrt(Vy[i]*Vy[i]+Vx[i]*Vx[i]);
-            if(sel[i]>maxSel){ maxSel = sel[i];}
         }
 
-        displays[4].resetDisplay(fix,fix,fix);
-
-        int i=0;
-        for (auto h : CX.hg->hexen) {
-            double hue = pref[i]/M_PI;
-            double val = sel[i]/maxSel;
-            array<float, 3> cl = morph::Tools::HSVtoRGB (hue, 1.0, val);
-            displays[4].drawHex (h.position(), array<float, 3>{0.,0.,0.}, (h.d/2.0f), cl);
-            i++;
-        }
-        displays[4].redrawDisplay();
-        stringstream ss; ss << "map_" << time << ".png";
-        displays[4].saveImage(ss.str());
 
     }
 
@@ -346,9 +285,7 @@ class gcal : Network {
     }
 
     ~gcal(void){
-        for(unsigned int i=0;i<displays.size();i++){
-            displays[i].closeDisplay();
-        }
+
     }
 
 };
@@ -361,11 +298,13 @@ class gcal : Network {
 
 int main(int argc, char **argv){
 
-    if (argc < 3) { cerr << "\nUsage: ./test configfile seed \n\n"; return -1; }
+    if (argc < 4) { cerr << "\nUsage: ./test configfile seed mode weightfile(optional)\n\n"; return -1; }
 
     string paramsfile (argv[1]);
 
     srand(stoi(argv[2]));
+
+    int MODE = stoi(argv[3]);
 
     //  Set up JSON code for reading the parameters
     ifstream jsonfile_test;
@@ -388,22 +327,68 @@ int main(int argc, char **argv){
     unsigned int nBlocks = root.get ("blocks", 100).asUInt();
     unsigned int steps = root.get ("steps", 100).asUInt();
 
-    vector<double> fix(3, 0.0);
 
     gcal Net;
     Net.init(root);
 
-    for(int b=0;b<nBlocks;b++){
+    if(argc>4){
+        Net.load(argv[4]);
+        cout<<"Using weight file: "<<argv[4]<<endl;
+    } else {
+        cout<<"Using random weights"<<endl;
+    }
 
-        //Net.load("weights.h5");
+    switch(MODE){
 
-        Net.map();
+        case(0): {
 
-        for(unsigned int i=0;i<steps;i++){
-            Net.step();
-        }
+            vector<morph::Gdisplay> displays;
+            displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Input Activity", 1.7, 0.0, 0.0));
+            displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Cortical Activity", 1.7, 0.0, 0.0));
+            displays.push_back(morph::Gdisplay(1200, 400, 0, 0, "Cortical Projection", 1.7, 0.0, 0.0));
+            displays.push_back(morph::Gdisplay(600, 300, 0, 0, "LGN ON/OFF", 1.7, 0.0, 0.0));
+            displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Map", 1.7, 0.0, 0.0));
 
-        Net.save("weights.h5");
+            for(unsigned int i=0;i<displays.size();i++){
+                displays[i].resetDisplay (vector<double>(3,0),vector<double>(3,0),vector<double>(3,0));
+                displays[i].redrawDisplay();
+            }
+
+            for(int b=0;b<nBlocks;b++){
+
+                Net.map();
+                Net.plotMap(displays[4]);
+
+                for(unsigned int i=0;i<steps;i++){
+                    Net.stepAfferent();
+                    Net.plotAfferent(displays[0],displays[3]);
+                    Net.stepCortex(displays[1]);
+                    Net.plotWeights(displays[2],500);
+                }
+                stringstream ss; ss << "weights_" << Net.time << ".h5";
+                Net.save(ss.str());
+            }
+
+            for(unsigned int i=0;i<displays.size();i++){
+                displays[i].closeDisplay();
+            }
+
+        } break;
+
+        case(1): {
+
+            for(int b=0;b<nBlocks;b++){
+                Net.map();
+                for(unsigned int i=0;i<steps;i++){
+                    Net.stepAfferent();
+                    Net.stepCortex();
+                }
+
+                stringstream ss; ss << "weights_" << Net.time << ".h5";
+                Net.save(ss.str());
+            }
+
+        } break;
 
     }
 

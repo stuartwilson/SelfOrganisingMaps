@@ -31,14 +31,6 @@ class Network{
 
     }
 
-    virtual void step(void){
-
-    }
-
-    virtual void map(void){
-
-    }
-
 };
 
 
@@ -390,19 +382,19 @@ class CortexSOM : public RD_Sheet<Flt>
         }
     }
 
-virtual void step2 (void) {
+virtual void step (vector<int> projectionIDs) {
         this->stepCount++;
 
-        for(unsigned int i=0;i<this->Projections.size();i++){
-            this->Projections[i].getWeightedSum();
+        for(unsigned int i=0;i<projectionIDs.size();i++){
+            this->Projections[projectionIDs[i]].getWeightedSum();
         }
 
         this->zero_X();
 
-        for(unsigned int i=0;i<2;i++){
+        for(unsigned int i=0;i<projectionIDs.size();i++){
         #pragma omp parallel for
             for (unsigned int hi=0; hi<this->nhex; ++hi) {
-                this->X[hi] += this->Projections[i].field[hi];
+                this->X[hi] += this->Projections[projectionIDs[i]].field[hi];
             }
         }
 

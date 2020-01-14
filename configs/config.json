@@ -5,7 +5,7 @@
 	"CX_svgpath" : "boundaries/trial.svg",
 	"homeostasis" : true,	
 	"blocks": 100,
-	"steps": 1000,
+	"steps": 100,
 	"settle": 16,
 	"beta" : 0.991,
 	"lambda" : 0.01,
