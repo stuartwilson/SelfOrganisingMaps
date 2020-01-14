@@ -158,7 +158,7 @@ class gcal : public Network {
         CX.renormalize();
         if (homeostasis){ CX.homeostasis(); }
         time++;
-        cout<<"iterations: "<<time<<endl;
+        // cout<<"iterations: "<<time<<endl;
     }
 
     void stepCortex(morph::Gdisplay disp){
@@ -172,7 +172,7 @@ class gcal : public Network {
         CX.renormalize();
         if (homeostasis){ CX.homeostasis(); }
         time++;
-        cout<<"iterations: "<<time<<endl;
+        // cout<<"iterations: "<<time<<endl;
     }
 
     void plotWeights(morph::Gdisplay disp, int id){
