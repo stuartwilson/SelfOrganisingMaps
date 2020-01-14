@@ -420,7 +420,7 @@ int main(int argc, char **argv){
 
             for(unsigned int i=0;i<displays.size();i++){
                 displays[i].redrawDisplay();
-                stringstream ss; ss << "plot_" << i << ".png";
+                stringstream ss; ss << "plot_" << Net.time << "_" << i << ".png";
                 displays[i].saveImage(ss.str());
             }
 
