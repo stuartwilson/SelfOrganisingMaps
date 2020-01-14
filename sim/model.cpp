@@ -203,8 +203,6 @@ class gcal : public Network {
             i++;
         }
         disp.redrawDisplay();
-        stringstream ss; ss << "map_" << time << ".png";
-        disp.saveImage(ss.str());
 
     }
 
@@ -286,6 +284,7 @@ class gcal : public Network {
             data.read_contained_vals (ss.str().c_str(), proj);
             CX.Projections[p].setWeights(proj);
         }
+        cout<<"loaded weights and modified Net.time to " << time << endl;
 
     }
 
@@ -337,8 +336,8 @@ int main(int argc, char **argv){
     Net.init(root);
 
     if(argc>4){
-        Net.load(argv[4]);
         cout<<"Using weight file: "<<argv[4]<<endl;
+        Net.load(argv[4]);
     } else {
         cout<<"Using random weights"<<endl;
     }
