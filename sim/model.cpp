@@ -265,6 +265,8 @@ class gcal : public Network {
     void save(string filename){
         stringstream fname; fname << filename;
         HdfData data(fname.str());
+        vector<int> timetmp(1,time);
+        data.add_contained_vals ("time", timetmp);
         for(unsigned int p=0;p<CX.Projections.size();p++){
             vector<double> proj = CX.Projections[p].getWeights();
             stringstream ss; ss<<"proj_"<<p;
@@ -275,6 +277,9 @@ class gcal : public Network {
     void load(string filename){
         stringstream fname; fname << filename;
         HdfData data(fname.str(),1);
+        vector<int> timetmp;
+        data.read_contained_vals ("time", timetmp);
+        time = timetmp[0];
         for(unsigned int p=0;p<CX.Projections.size();p++){
             vector<double> proj;
             stringstream ss; ss<<"proj_"<<p;
@@ -342,6 +347,22 @@ int main(int argc, char **argv){
 
         case(0): {
 
+            for(int b=0;b<nBlocks;b++){
+                Net.map();
+                for(unsigned int i=0;i<steps;i++){
+                    Net.stepAfferent();
+                    Net.stepCortex();
+                }
+
+                stringstream ss; ss << "weights_" << Net.time << ".h5";
+                Net.save(ss.str());
+            }
+
+        } break;
+
+
+        case(1): {
+
             vector<morph::Gdisplay> displays;
             displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Input Activity", 1.7, 0.0, 0.0));
             displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Cortical Activity", 1.7, 0.0, 0.0));
@@ -375,20 +396,40 @@ int main(int argc, char **argv){
 
         } break;
 
-        case(1): {
+        case(2): {
 
-            for(int b=0;b<nBlocks;b++){
-                Net.map();
-                for(unsigned int i=0;i<steps;i++){
-                    Net.stepAfferent();
-                    Net.stepCortex();
-                }
+            vector<morph::Gdisplay> displays;
+            displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Input Activity", 1.7, 0.0, 0.0));
+            displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Cortical Activity", 1.7, 0.0, 0.0));
+            displays.push_back(morph::Gdisplay(1200, 400, 0, 0, "Cortical Projection", 1.7, 0.0, 0.0));
+            displays.push_back(morph::Gdisplay(600, 300, 0, 0, "LGN ON/OFF", 1.7, 0.0, 0.0));
+            displays.push_back(morph::Gdisplay(600, 600, 0, 0, "Map", 1.7, 0.0, 0.0));
 
-                stringstream ss; ss << "weights_" << Net.time << ".h5";
-                Net.save(ss.str());
+            for(unsigned int i=0;i<displays.size();i++){
+                displays[i].resetDisplay (vector<double>(3,0),vector<double>(3,0),vector<double>(3,0));
+                displays[i].redrawDisplay();
+            }
+
+            Net.map();
+            Net.plotMap(displays[4]);
+
+            Net.stepAfferent();
+            Net.plotAfferent(displays[0],displays[3]);
+            Net.stepCortex(displays[1]);
+            Net.plotWeights(displays[2],500);
+
+            for(unsigned int i=0;i<displays.size();i++){
+                displays[i].redrawDisplay();
+                stringstream ss; ss << "plot_" << i << ".png";
+                displays[i].saveImage(ss.str());
+            }
+
+            for(unsigned int i=0;i<displays.size();i++){
+                displays[i].closeDisplay();
             }
 
         } break;
+
 
     }
 
