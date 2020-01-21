@@ -46,11 +46,11 @@ public:
 
     HexGrid* hgSrc;
     HexGrid* hgDst;
-    Flt radius;                    // radius within which connections are made
-    Flt strength;                // strength of projection - multiplication after dot products
-    Flt alpha;                    // learning rate
-    unsigned int nSrc;                // number of units on source sheet
-    unsigned int nDst;                // number of units on destination sheet
+    Flt radius;                     // radius within which connections are made
+    Flt strength;                   // strength of projection - multiplication after dot products
+    Flt alpha;                      // learning rate
+    unsigned int nSrc;              // number of units on source sheet
+    unsigned int nDst;              // number of units on destination sheet
 
     vector<unsigned int> counts;                // number of connections in connection field for each unit
     vector<Flt> norms;                // 1./counts
@@ -467,4 +467,136 @@ public:
 
 
 };
+
+
+
+
+
+class Square{
+    public:
+        int xid, yid;
+        double x, y;
+        double X;
+
+    Square(int xid, int yid, double x, double y){
+        this->xid = xid;
+        this->yid = yid;
+        this->x = x;
+        this->y = y;
+        X = 0.;
+    }
+};
+
+class CartGrid{
+    public:
+        int n, nx, ny;
+        vector<Square> vsquare;
+
+    CartGrid(void){
+
+    }
+
+    CartGrid(int nx, int ny){
+        init(ny, ny);
+    }
+
+    void init(int nx, int ny){
+
+        this->nx = nx;
+        this->ny = ny;
+        n = nx*ny;
+
+        double maxDim = (double)max(nx,ny);
+
+        int k=0;
+        for(int i=0;i<nx;i++){
+            double xpos = ((double)i/(double)maxDim)-0.5;
+            for(int j=0;j<ny;j++){
+                double ypos = ((double)j/(double)maxDim)-0.5;
+                vsquare.push_back(Square(i,j,xpos,ypos));
+                k++;
+            }
+        }
+    }
+};
+
+
+template <class Flt>
+class HexCartSampler : public RD_Sheet<Flt>
+{
+
+public:
+    CartGrid C;
+    Flt radius, sigma;
+    vector<vector<unsigned int> > srcId;
+    vector<vector<Flt> > weights;
+    vector<vector<Flt> > distances;
+    vector<unsigned int> counts;
+    vector<Flt> norms;
+    Flt strength;
+
+
+    HexCartSampler(void){
+
+    }
+
+    HexCartSampler(int nx, int ny, Flt radius, Flt sigma){
+        init(nx,ny,radius,sigma);
+    }
+
+    void init2(int nx, int ny, Flt radius, Flt sigma){
+
+        C.init(nx, ny);
+
+        this->radius = radius;
+        this->sigma = sigma;
+        this->strength = 1.0;
+        srcId.resize(this->nhex);
+        counts.resize(this->nhex);
+        weights.resize(this->nhex);
+        distances.resize(this->nhex);
+        norms.resize(this->nhex);
+
+        Flt radiusSquared = radius*radius;    // precompute for speed
+        Flt OverTwoSigmaSquared = 1./(2.0*sigma*sigma);
+        #pragma omp parallel for
+        for(unsigned int i=0;i<this->nhex;i++){
+            for(unsigned int j=0;j<C.n;j++){
+                Flt dx = (this->hg->vhexen[i]->x-C.vsquare[j].x);
+                Flt dy = (this->hg->vhexen[i]->y-C.vsquare[j].y);
+                Flt distSquared = dx*dx+dy*dy;
+                if (distSquared<radiusSquared){
+                    counts[i]++;
+                    srcId[i].push_back(j);
+                    Flt w = 1.0;
+                    if(sigma>0.){
+                        w = exp(-distSquared*OverTwoSigmaSquared);
+                    }
+                    weights[i].push_back(w);
+                    distances[i].push_back(sqrt(distSquared));
+                }
+            }
+            norms[i] = 1.0/(Flt)counts[i];
+            for(unsigned int j=0;j<counts[i];j++){
+                weights[i][j] *= norms[i];
+            }
+        }
+
+    }
+
+    virtual void step (void) {
+        this->zero_X();
+        #pragma omp parallel for
+        for(unsigned int i=0;i<this->nhex;i++){
+            for(unsigned int j=0;j<counts[i];j++){
+                this->X[i] += C.vsquare[srcId[i][j]].X*weights[i][j];
+            }
+            this->X[i] *= strength;
+        }
+
+    }
+
+};
+
+
 
