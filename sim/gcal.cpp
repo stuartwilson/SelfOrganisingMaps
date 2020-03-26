@@ -159,6 +159,10 @@ class gcal : public Network {
                 HCM.stepCamera();
                 IN.X = HCM.X;
             } break;
+            case(3):{
+            	HCM.stepVideo();
+            	IN.X = HCM.X;
+            }break;
             default:{
                 for(int i=0;i<HCM.C.n;i++){
                     HCM.C.vsquare[i].X = morph::Tools::randDouble();
@@ -251,7 +255,7 @@ class gcal : public Network {
                 IN.Grating(theta,phase,30.0,1.0);
                 LGN_ON.step();
                 LGN_OFF.step();
-                CX.zero_X();
+                CX.zero_X(); //TODO remove reset step
                 CX.step(aff);
                 for(int k=0;k<maxPhase.size();k++){
                     if(maxPhase[k]<CX.X[k]){ maxPhase[k] = CX.X[k]; }
@@ -368,6 +372,19 @@ int main(int argc, char **argv){
             int yoff = root.get("cameraOffsetY", 0).asUInt();
             Net.HCM.initProjection(ncols,nrows,0.01,20.);
             if(!Net.HCM.initCamera(xoff, yoff, stepsize)){ return 0;}
+        } break;
+
+        case(3):{
+            int ncols = root.get("videoCols", 426).asUInt();
+            int nrows = root.get("videoRows", 240).asUInt();
+            int xOffset = root.get("videoOffsetX", 0).asUInt();
+            int yOffset = root.get("videoOffsetY", 0).asUInt();
+            int stepSize = root.get("videoSampleStep", 7).asUInt();
+            Net.HCM.initProjection(ncols,nrows,0.01,20.);
+        	if(!Net.HCM.initVideo(xOffset, yOffset, stepSize)){
+        		cout << "Failed to open video file" << endl;
+        		return 0;
+        	}
         } break;
     }
 

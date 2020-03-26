@@ -7,7 +7,7 @@
 #include "morph/HexGrid.h"
 #include "morph/ReadCurves.h"
 #include "morph/RD_Base.h"
-# include "morph/RD_Plot.h"
+#include "morph/RD_Plot.h"
 
 using namespace cv;
 using namespace morph;
@@ -41,7 +41,8 @@ template <class Flt>
 class Projection{
 
 /*
-    A projection class for connecting units on a source sheet to units on a destination sheet with topographically aligned weighted connections from a radius of units on the source sheet to each destination sheet unit.
+    A projection class for connecting units on a source sheet to units on a destination sheet with topographically aligned
+    weighted connections from a radius of units on the source sheet to each destination sheet unit.
 */
 
 public:
@@ -57,14 +58,14 @@ public:
     vector<unsigned int> counts;                // number of connections in connection field for each unit
     vector<Flt> norms;                // 1./counts
     vector<Flt> alphas;                // learning rates for each unit may depend on e.g., the number of connections
-    vector<vector<unsigned int> > srcId;            // identity of conneted units on the source sheet
+    vector<vector<unsigned int> > srcId;            // identity of connected units on the source sheet
     vector<vector<Flt> > weights;        // connection weights
     vector<vector<Flt> > distances;        // pre-compute distances between units in source and destination sheets
     vector<Flt> field;                // current activity patterns
     vector<Flt*> fSrc;                // pointers to the field elements on the source sheet
     vector<Flt*> fDst;                // pointers to the field elements on the destination sheet
     vector<double> weightPlot;            // for constructing activity plots
-    bool normalizeAlphas;            // whether to normalize learning rate by individual unit connection density
+    bool normalizeAlphas;            // whether to normalise learning rate by individual unit connection density
 
 
     Projection(vector<Flt*> fSrc, vector<Flt*> fDst, HexGrid* hgSrc, HexGrid* hgDst, Flt radius, Flt strength, Flt alpha, Flt sigma, bool normalizeAlphas){
@@ -73,70 +74,70 @@ public:
         Initialise the class with random weights (if sigma>0, the weights have a Gaussian pattern, else uniform random)
     */
 
-        this->fSrc = fSrc;
-        this->fDst = fDst;
-        this->hgSrc = hgSrc;
-        this->hgDst = hgDst;
-        this->radius = radius;
-        this->strength = strength;
-        this->alpha = alpha;
-    this->normalizeAlphas = normalizeAlphas;
+		this->fSrc = fSrc;
+		this->fDst = fDst;
+		this->hgSrc = hgSrc;
+		this->hgDst = hgDst;
+		this->radius = radius;
+		this->strength = strength;
+		this->alpha = alpha;
+		this->normalizeAlphas = normalizeAlphas;
 
-        nDst = hgDst->vhexen.size();
-        nSrc = hgSrc->vhexen.size();
+		nDst = hgDst->vhexen.size();
+		nSrc = hgSrc->vhexen.size();
 
-        field.resize(nDst);
-        counts.resize(nDst);
-        norms.resize(nDst);
-        srcId.resize(nDst);
-        weights.resize(nDst);
-        alphas.resize(nDst);
-        distances.resize(nDst);
-        weightPlot.resize(nSrc);
+		field.resize(nDst);
+		counts.resize(nDst);
+		norms.resize(nDst);
+		srcId.resize(nDst);
+		weights.resize(nDst);
+		alphas.resize(nDst);
+		distances.resize(nDst);
+		weightPlot.resize(nSrc);
 
-        Flt radiusSquared = radius*radius;    // precompute for speed
+		Flt radiusSquared = radius*radius;    // precompute for speed
 
-        double OverTwoSigmaSquared = 1./(sigma*sigma*2.0);    // precompute normalisation constant
+		double OverTwoSigmaSquared = 1./(sigma*sigma*2.0);    // precompute normalisation constant
 
-    // initialize connections for each destination sheet unit
-    #pragma omp parallel for
-        for(unsigned int i=0;i<nDst;i++){
-            for(unsigned int j=0;j<nSrc;j++){
-                Flt dx = (hgSrc->vhexen[j]->x-hgDst->vhexen[i]->x);
-                Flt dy = (hgSrc->vhexen[j]->y-hgDst->vhexen[i]->y);
-                Flt distSquared = dx*dx+dy*dy;
-                if (distSquared<radiusSquared){
-                    counts[i]++;
-                    srcId[i].push_back(j);
-                    Flt w = 1.0;
-                    if(sigma>0.){
-                        w = exp(-distSquared*OverTwoSigmaSquared);
-                    }
-                    weights[i].push_back(w);
-                    distances[i].push_back(sqrt(distSquared));
-                }
-            }
-            norms[i] = 1.0/(Flt)counts[i];
-            alphas[i] = alpha;
-        if(normalizeAlphas){
-            alphas[i] *= norms[i];
-        }
+		// initialize connections for each destination sheet unit
+		#pragma omp parallel for
+			for(unsigned int i=0;i<nDst;i++){
+				for(unsigned int j=0;j<nSrc;j++){
+					Flt dx = (hgSrc->vhexen[j]->x-hgDst->vhexen[i]->x);
+					Flt dy = (hgSrc->vhexen[j]->y-hgDst->vhexen[i]->y);
+					Flt distSquared = dx*dx+dy*dy;
+					if (distSquared<radiusSquared){
+						counts[i]++;
+						srcId[i].push_back(j);
+						Flt w = 1.0;
+						if(sigma>0.){
+							w = exp(-distSquared*OverTwoSigmaSquared);
+						}
+						weights[i].push_back(w);
+						distances[i].push_back(sqrt(distSquared));
+					}
+				}
+				norms[i] = 1.0/(Flt)counts[i];
+				alphas[i] = alpha;
+			if(normalizeAlphas){
+				alphas[i] *= norms[i];
+			}
 
-    }
+		}
     }
 
     void getWeightedSum(void){
     /*
         Dot product of each weight vector with the corresponding source sheet field values, multiplied by the strength of the projection
     */
-#pragma omp parallel for
-        for(unsigned int i=0;i<nDst;i++){
-            field[i] = 0.;
-                for(unsigned int j=0;j<counts[i];j++){
-                    field[i] += *fSrc[srcId[i][j]]*weights[i][j];
-                }
-        field[i] *= strength;
-    }
+	#pragma omp parallel for
+			for(unsigned int i=0;i<nDst;i++){
+				field[i] = 0.;
+					for(unsigned int j=0;j<counts[i];j++){
+						field[i] += *fSrc[srcId[i][j]]*weights[i][j];
+					}
+			field[i] *= strength;
+		}
     }
 
     void learn(void){
@@ -384,7 +385,7 @@ class CortexSOM : public RD_Sheet<Flt>
         }
     }
 
-virtual void step (vector<int> projectionIDs) {
+    virtual void step (vector<int> projectionIDs) {
         this->stepCount++;
 
         for(unsigned int i=0;i<projectionIDs.size();i++){
@@ -409,6 +410,31 @@ virtual void step (vector<int> projectionIDs) {
         }
     }
 
+
+    virtual void cortexStep (vector<int> projectionIDs) {
+        this->stepCount++;
+
+        for(unsigned int i=0;i<projectionIDs.size();i++){
+            this->Projections[projectionIDs[i]].getWeightedSum();
+        }
+
+        this->zero_X();
+
+        for(unsigned int i=0;i<projectionIDs.size();i++){
+        #pragma omp parallel for
+            for (unsigned int hi=0; hi<this->nhex; ++hi) {
+                this->X[hi] += this->Projections[projectionIDs[i]].field[hi];
+            }
+        }
+
+        #pragma omp parallel for
+        for (unsigned int hi=0; hi<this->nhex; ++hi) {
+            this->X[hi] = this->X[hi]-this->Theta[hi];
+            if(this->X[hi]<0.0){
+                this->X[hi] = 0.0;
+            }
+        }
+    }
 
     void homeostasis(void){
 
@@ -561,6 +587,9 @@ public:
 
     vector<vector<double> > PreLoadedPatterns;
 
+    int numberOfVideoFrames;
+    int currentVideoFrame;
+
     HexCartSampler(void){
 
     }
@@ -617,6 +646,49 @@ public:
         mask[2] = Point(xoff+stepsize*C.nx-1,yoff+stepsize*C.ny-1);
         mask[3] = Point(xoff,yoff+stepsize*C.ny-1);
         return cap.open(0);
+    }
+
+    int initVideo(int xoff, int yoff, int stepsize){
+    	this->currentVideoFrame = 0;
+        this->stepsize = stepsize;
+        mask.resize(4);
+        mask[0] = Point(xoff,yoff);
+        mask[1] = Point(xoff+stepsize*C.nx-1,yoff);
+        mask[2] = Point(xoff+stepsize*C.nx-1,yoff+stepsize*C.ny-1);
+        mask[3] = Point(xoff,yoff+stepsize*C.ny-1);
+        //cap = cv::VideoCapture('/home/jon/MSc Project/SelfOrganisingMaps/planet_earth.avi');
+        if(cap.open("/home/jon/MSc Project/SelfOrganisingMaps/planet_earth.avi"))
+		{
+        	this->numberOfVideoFrames = int(cap.get(CV_CAP_PROP_FRAME_COUNT));
+        	return 1;
+		}
+        else{
+        	return 0;
+        }
+    }
+
+
+    void stepVideo(){
+		Mat frame;
+		// Capture frame-by-frame
+		cap >> frame;
+
+        vector<double> img = getPolyPixelVals(frame,mask);
+        cout << img.size() << endl;
+        vector<double> pat((img.size()/stepsize),0.);
+        int iter = stepsize*C.ny*stepsize;
+        int k=0;
+        for(int i=0;i<C.nx;i++){
+            int I = (C.nx-i-1)*stepsize;
+            for(int j=0;j<C.ny;j++){
+            	cout << (C.ny-j-1)*iter+I << endl;
+            	cout << k << endl;
+                C.vsquare[k].X = img[(C.ny-j-1)*iter+I];
+                k++;
+            }
+        }
+        step();
+
     }
 
     virtual void step (void) {
