@@ -4,11 +4,11 @@ Implementation of GCAL model reported in Stevens et al., (2013) J. Neurosci. pap
 
 First install morphologica (https://github.com/ABRG-Models/morphologica), then build in the usual cmake way
 
-mkdir build &nbsp;
-cd build &nbsp;
-cmake .. &nbsp;
-make &nbsp;
-cd .. &nbsp;
+mkdir build  
+cd build  
+cmake ..  
+make  
+cd ..  
 
 
 Then run model using e.g., 
