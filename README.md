@@ -4,16 +4,16 @@ Implementation of GCAL model reported in Stevens et al., (2013) J. Neurosci. pap
 
 First install morphologica (https://github.com/ABRG-Models/morphologica), then build in the usual cmake way
 
-mkdir build
-cd build
-cmake .
-make
-cd ..
+mkdir build &nbsp;
+cd build &nbsp;
+cmake .. &nbsp;
+make &nbsp;
+cd .. &nbsp;
 
 
 Then run model using e.g., 
 
-./build/sim/gcal configs/config.js 1 1 2
+./build/sim/gcal configs/config.json 1 1 2
 
 The final 3 numbers are
 1. random seed
