@@ -506,7 +506,7 @@ vector<double> getPolyPixelVals(Mat frame, vector<Point> pp){
     fillConvexPoly(mask, pts, 4, cv::Scalar(255,255,255) );
     Mat result, resultGray;
     frame.copyTo(result,mask);
-    cvtColor(result,resultGray,CV_BGR2GRAY);
+    cvtColor(result,resultGray,COLOR_BGR2GRAY);
     vector<Point2i> positives;
     findNonZero(resultGray, positives);
     vector<double> polyPixelVals(positives.size());
