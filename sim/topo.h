@@ -638,28 +638,28 @@ public:
 
     }
 
-    int initCamera(int xoff, int yoff, int stepsize){
+    int initCamera(int xOffset, int yOffset, int stepsize){
         this->stepsize = stepsize;
         mask.resize(4);
-        mask[0] = Point(xoff,yoff);
-        mask[1] = Point(xoff+stepsize*C.nx-1,yoff);
-        mask[2] = Point(xoff+stepsize*C.nx-1,yoff+stepsize*C.ny-1);
-        mask[3] = Point(xoff,yoff+stepsize*C.ny-1);
+        mask[0] = Point(xOffset,yOffset);
+        mask[1] = Point(xOffset+stepsize*C.nx-1,yOffset);
+        mask[2] = Point(xOffset+stepsize*C.nx-1,yOffset+stepsize*C.ny-1);
+        mask[3] = Point(xOffset,yOffset+stepsize*C.ny-1);
         return cap.open(0);
     }
 
-    int initVideo(int xoff, int yoff, int stepsize){
+    int initVideo(int xOffset, int yOffset, int stepsize){
     	this->currentVideoFrame = 0;
         this->stepsize = stepsize;
         mask.resize(4);
-        mask[0] = Point(xoff,yoff);
-        mask[1] = Point(xoff+stepsize*C.nx-1,yoff);
-        mask[2] = Point(xoff+stepsize*C.nx-1,yoff+stepsize*C.ny-1);
-        mask[3] = Point(xoff,yoff+stepsize*C.ny-1);
-        //cap = cv::VideoCapture('/home/jon/MSc Project/SelfOrganisingMaps/planet_earth.avi');
+        mask[0] = Point(xOffset,yOffset);
+        mask[1] = Point(xOffset+stepsize*C.nx-1,yOffset);
+        mask[2] = Point(xOffset+stepsize*C.nx-1,yOffset+stepsize*C.ny-1);
+        mask[3] = Point(xOffset,yOffset+stepsize*C.ny-1);
+        cap.open("/home/jon/MSc Project/SelfOrganisingMaps/planet_earth.avi");
         if(cap.open("/home/jon/MSc Project/SelfOrganisingMaps/planet_earth.avi"))
 		{
-        	this->numberOfVideoFrames = int(cap.get(CV_CAP_PROP_FRAME_COUNT));
+        	this->numberOfVideoFrames = int(cap.get(CAP_PROP_FRAME_COUNT));
         	return 1;
 		}
         else{
@@ -672,6 +672,9 @@ public:
 		Mat frame;
 		// Capture frame-by-frame
 		cap >> frame;
+	    // If the frame is empty, break immediately
+	    if (frame.empty())
+	      cout << ":No frame to show" << endl;
 
         vector<double> img = getPolyPixelVals(frame,mask);
         cout << img.size() << endl;
