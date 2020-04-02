@@ -100,6 +100,7 @@ class gcal : public Network {
 
         LGN_ON.addProjection(IN.Xptr, IN.hg, afferRadius, +LGNstrength, 0.0, LGNCenterSigma, false);
         LGN_ON.addProjection(IN.Xptr, IN.hg, afferRadius, -LGNstrength, 0.0, LGNSurroundSigma, false);
+        LGN_ON.addProjection(LGN_ON.Xptr, LGN_ON.hg, afferRadius, -LGNstrength, 0.0, LGNSurroundSigma, false);
         for(unsigned int i=0;i<LGN_ON.Projections.size();i++){
             LGN_ON.Projections[i].renormalize();
         }
@@ -111,7 +112,7 @@ class gcal : public Network {
 
         LGN_OFF.addProjection(IN.Xptr, IN.hg, afferRadius, -LGNstrength, 0.0, LGNCenterSigma, false);
         LGN_OFF.addProjection(IN.Xptr, IN.hg, afferRadius, +LGNstrength, 0.0, LGNSurroundSigma, false);
-
+        LGN_OFF.addProjection(LGN_OFF.Xptr, LGN_OFF.hg, afferRadius, -LGNstrength, 0.0, LGNSurroundSigma, false);
         for(unsigned int i=0;i<LGN_OFF.Projections.size();i++){
             LGN_OFF.Projections[i].renormalize();
         }
@@ -145,26 +146,40 @@ class gcal : public Network {
 
     void stepAfferent(unsigned type){
         switch(type){
-            case(0):{ // Gaussians
+            case(0): // Gaussians
+			{
                 IN.Gaussian(
                 (morph::Tools::randDouble()-0.5)*xRange,
                 (morph::Tools::randDouble()-0.5)*yRange,
                 morph::Tools::randDouble()*M_PI, sigmaA,sigmaB);
-            } break;
-            case(1):{ // Preloaded
+            }
+            break;
+
+            case(1):
+			{ // Preloaded
                 HCM.stepPreloaded();
                 IN.X = HCM.X;
-            } break;
-            case(2):{ // Camera input
+            }
+            break;
+
+            case(2): // Camera input
+			{
                 HCM.stepCamera();
                 IN.X = HCM.X;
-            } break;
-            case(3):{
+            }
+            break;
+
+            case(3): // Video input
+			{
             	HCM.stepVideo();
             	IN.X = HCM.X;
-            }break;
-            default:{
-                for(int i=0;i<HCM.C.n;i++){
+            }
+            break;
+
+            default:
+            {
+                for(int i=0;i<HCM.C.n;i++)
+                {
                     HCM.C.vsquare[i].X = morph::Tools::randDouble();
                 }
                 HCM.step();
@@ -367,7 +382,7 @@ int main(int argc, char **argv){
         case(2):{
             int ncols = root.get("cameraCols", 100).asUInt();
             int nrows = root.get("cameraRows", 100).asUInt();
-            int stepsize = root.get("cameraSampleStep", 7).asUInt();
+            int stepsize = root.get("cameraSampleStep", 7).asUInt(); 	// Value should be based on camera resolution (height)
             int xoff = root.get("cameraOffsetX", 100).asUInt();
             int yoff = root.get("cameraOffsetY", 0).asUInt();
             Net.HCM.initProjection(ncols,nrows,0.01,20.);
@@ -375,13 +390,13 @@ int main(int argc, char **argv){
         } break;
 
         case(3):{
-            int ncols = root.get("videoCols", 426).asUInt();
-            int nrows = root.get("videoRows", 240).asUInt();
+            int ncols = root.get("videoCols", 100).asUInt();
+            int nrows = root.get("videoRows", 100).asUInt();
             int xOffset = root.get("videoOffsetX", 0).asUInt();
             int yOffset = root.get("videoOffsetY", 0).asUInt();
-            int stepSize = root.get("videoSampleStep", 7).asUInt();
             Net.HCM.initProjection(ncols,nrows,0.01,20.);
-        	if(!Net.HCM.initVideo(xOffset, yOffset, stepSize)){
+            string videoSource = root.get("videoSource", "configs/videos/planet_earth_700.avi").asString();
+        	if(!Net.HCM.initVideo(xOffset, yOffset, ncols, videoSource)){
         		cout << "Failed to open video file" << endl;
         		return 0;
         	}

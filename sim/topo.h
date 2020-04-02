@@ -8,6 +8,7 @@
 #include "morph/ReadCurves.h"
 #include "morph/RD_Base.h"
 #include "morph/RD_Plot.h"
+#include <math.h>
 
 using namespace cv;
 using namespace morph;
@@ -518,7 +519,9 @@ vector<double> getPolyPixelVals(Mat frame, vector<Point> pp){
 }
 
 
-
+/*
+ *
+ */
 class Square{
     public:
         int xid, yid;
@@ -534,6 +537,10 @@ class Square{
     }
 };
 
+
+/*
+ *
+ */
 class CartGrid{
     public:
         int n, nx, ny;
@@ -568,6 +575,9 @@ class CartGrid{
 };
 
 
+/*
+ *
+ */
 template <class Flt>
 class HexCartSampler : public RD_Sheet<Flt>
 {
@@ -586,9 +596,6 @@ public:
     unsigned int stepsize;
 
     vector<vector<double> > PreLoadedPatterns;
-
-    int numberOfVideoFrames;
-    int currentVideoFrame;
 
     HexCartSampler(void){
 
@@ -638,6 +645,7 @@ public:
 
     }
 
+
     int initCamera(int xOffset, int yOffset, int stepsize){
         this->stepsize = stepsize;
         mask.resize(4);
@@ -648,20 +656,16 @@ public:
         return cap.open(0);
     }
 
-    int initVideo(int xOffset, int yOffset, int stepsize){
-    	this->currentVideoFrame = 0;
-        this->stepsize = stepsize;
-        mask.resize(4);
-        mask[0] = Point(xOffset,yOffset);
-        mask[1] = Point(xOffset+stepsize*C.nx-1,yOffset);
-        mask[2] = Point(xOffset+stepsize*C.nx-1,yOffset+stepsize*C.ny-1);
-        mask[3] = Point(xOffset,yOffset+stepsize*C.ny-1);
-        cap.open("/home/jon/MSc Project/SelfOrganisingMaps/planet_earth.avi");
-        if(cap.open("/home/jon/MSc Project/SelfOrganisingMaps/planet_earth.avi"))
-		{
-        	this->numberOfVideoFrames = int(cap.get(CAP_PROP_FRAME_COUNT));
-        	return 1;
-		}
+    int initVideo(int xOffset, int yOffset, int ncols, string videoSource){
+        if(cap.open(videoSource)){
+        	this->stepsize = int(floor(cap.get(CAP_PROP_FRAME_HEIGHT)/ncols));		// Used to capture every stepSize pixel from input video
+            mask.resize(4);
+            mask[0] = Point(xOffset,yOffset);
+            mask[1] = Point(xOffset+stepsize*C.nx-1,yOffset);
+            mask[2] = Point(xOffset+stepsize*C.nx-1,yOffset+stepsize*C.ny-1);
+            mask[3] = Point(xOffset,yOffset+stepsize*C.ny-1);
+            return 1;
+    	}
         else{
         	return 0;
         }
@@ -677,15 +681,12 @@ public:
 	      cout << ":No frame to show" << endl;
 
         vector<double> img = getPolyPixelVals(frame,mask);
-        cout << img.size() << endl;
         vector<double> pat((img.size()/stepsize),0.);
         int iter = stepsize*C.ny*stepsize;
         int k=0;
         for(int i=0;i<C.nx;i++){
             int I = (C.nx-i-1)*stepsize;
             for(int j=0;j<C.ny;j++){
-            	cout << (C.ny-j-1)*iter+I << endl;
-            	cout << k << endl;
                 C.vsquare[k].X = img[(C.ny-j-1)*iter+I];
                 k++;
             }
