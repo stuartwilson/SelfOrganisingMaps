@@ -20,7 +20,8 @@ using morph::RD_Plot;
 class Network{
 
     /*
-        High-level wrapper for specifying a network so that a simulation can be built by calling the methods (e.g., step/map) in a given order.
+        High-level wrapper for specifying a network so that a simulation can be built by calling the methods
+        (e.g., step/map) in a given order.
     */
 
     public:
@@ -132,11 +133,11 @@ public:
         Dot product of each weight vector with the corresponding source sheet field values, multiplied by the strength of the projection
     */
 	#pragma omp parallel for
-			for(unsigned int i=0;i<nDst;i++){
-				field[i] = 0.;
-					for(unsigned int j=0;j<counts[i];j++){
-						field[i] += *fSrc[srcId[i][j]]*weights[i][j];
-					}
+		for(unsigned int i=0;i<nDst;i++){
+			field[i] = 0.;
+				for(unsigned int j=0;j<counts[i];j++){
+					field[i] += *fSrc[srcId[i][j]]*weights[i][j];
+				}
 			field[i] *= strength;
 		}
     }
@@ -221,6 +222,8 @@ public:
     alignas(alignof(vector<Flt>)) vector<Flt> X;
     alignas(alignof(vector<Flt*>)) vector<Flt*> Xptr;
     vector<vector<int> > P;            // identity of projections to (potentially) joint normalize
+    float stepSize = 0.04;
+    float tau = 0.3; //decay constant
 
     virtual void init (void) {
         this->stepCount = 0;
@@ -244,6 +247,13 @@ public:
         for (unsigned int hi=0; hi<this->nhex; ++hi) {
             this->X[hi] = 0.;
         }
+    }
+
+	void decay(void){
+		#pragma omp parallel for
+		for(unsigned int hi=0; hi<this->nhex; hi++){
+			this->X[hi] = (this->X[hi]/tau)*stepSize;
+		}
     }
 
     void setNormalize(vector<int> proj){
@@ -305,7 +315,7 @@ public:
                 this->X[hi] += this->Projections[i].field[hi];
             }
         }
-    #pragma omp parallel for
+    	#pragma omp parallel for
         for (unsigned int hi=0; hi<this->nhex; ++hi) {
             this->X[hi] = fmax(this->X[hi],0.);
         }
@@ -360,7 +370,6 @@ class CortexSOM : public RD_Sheet<Flt>
         }
     }
 
-
     virtual void step (void) {
         this->stepCount++;
 
@@ -368,7 +377,7 @@ class CortexSOM : public RD_Sheet<Flt>
             this->Projections[i].getWeightedSum();
         }
 
-        this->zero_X();
+		this->zero_X();
 
         for(unsigned int i=0;i<this->Projections.size();i++){
         #pragma omp parallel for
@@ -386,14 +395,51 @@ class CortexSOM : public RD_Sheet<Flt>
         }
     }
 
-    virtual void step (vector<int> projectionIDs) {
+
+    virtual void step (bool zeroCortex, bool decayCortex) {
+        this->stepCount++;
+
+        for(unsigned int i=0;i<this->Projections.size();i++){
+            this->Projections[i].getWeightedSum();
+        }
+
+        if(zeroCortex){
+        	this->zero_X();
+        }
+        else if(decayCortex){
+        	this->decay();
+        }
+
+        for(unsigned int i=0;i<this->Projections.size();i++){
+        #pragma omp parallel for
+            for (unsigned int hi=0; hi<this->nhex; ++hi) {
+                this->X[hi] += this->Projections[i].field[hi];
+            }
+        }
+
+        #pragma omp parallel for
+        for (unsigned int hi=0; hi<this->nhex; ++hi) {
+            this->X[hi] = this->X[hi]-this->Theta[hi];
+            if(this->X[hi]<0.0){
+                this->X[hi] = 0.0;
+            }
+        }
+    }
+
+    virtual void step (vector<int> projectionIDs, bool zeroCortex, bool decayCortex) {
         this->stepCount++;
 
         for(unsigned int i=0;i<projectionIDs.size();i++){
             this->Projections[projectionIDs[i]].getWeightedSum();
         }
 
-        this->zero_X();
+        if(zeroCortex){
+        	this->zero_X();
+        }
+        else if(decayCortex){
+        	this->decay();
+        }
+
 
         for(unsigned int i=0;i<projectionIDs.size();i++){
         #pragma omp parallel for
@@ -493,6 +539,8 @@ public:
 
         }
     }
+
+
 
 
 };
