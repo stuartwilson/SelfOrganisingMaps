@@ -1,6 +1,6 @@
 # SelfOrganisingMaps
 
-Implementation of GCAL model reported in Stevens et al., (2013) J. Neurosci. paper.
+Implementation of GCAL model reported in Stevens et al., (2013) J. Neurosci. paper. (https://www.jneurosci.org/content/33/40/15747)
 
 First clone morphologica into the SelfOrganisingMaps directory (https://github.com/ABRG-Models/morphologica), then build in the usual cmake way
 
