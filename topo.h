@@ -525,7 +525,8 @@ std::vector<float> getPolyPixelVals(cv::Mat frame, std::vector<cv::Point> pp){
     fillConvexPoly(mask, pts, 4, cv::Scalar(255,255,255) );
     cv::Mat result, resultGray;
     frame.copyTo(result,mask);
-    cvtColor(result,resultGray,CV_BGR2GRAY);
+    //cvtColor(result,resultGray,CV_BGR2GRAY);
+    cvtColor(result,resultGray,cv::COLOR_BGR2GRAY/*CV_BGR2GRAY*/);
     std::vector<cv::Point2i> positives;
     findNonZero(resultGray, positives);
     std::vector<float> polyPixelVals(positives.size());
@@ -875,7 +876,7 @@ public:
         dftMagnitude = dftMagnitude.mul(dftMagnitude);
         dftMagnitude += cv::Scalar::all(1);
         cv::log(dftMagnitude, dftMagnitude);
-        cv::normalize(dftMagnitude, dftMagnitude, 0, 1, CV_MINMAX);
+        cv::normalize(dftMagnitude, dftMagnitude, 0, 1, cv::NORM_MINMAX/*CV_MINMAX*/);
         cv::Mat magI = dftMagnitude;
 
         // crop the spectrum, if it has an odd number of rows or columns
