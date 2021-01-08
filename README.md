@@ -12,7 +12,7 @@ cd ..
 
 Then run model using e.g., 
 
-./build/sim/gcal configs/config.js 1 1 0
+./build/SelfOrganisingMaps configs/config.json 1 1 0
 
 The final 3 numbers are
 1. random seed
