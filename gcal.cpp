@@ -18,15 +18,21 @@ using morph::ColourMap;
 
 int main(int argc, char **argv){
 
-    if (argc < 5) { std::cerr << "\nUsage: ./test configfile seed mode intype weightfile(optional)\n\n"; return -1; }
+    if (argc < 6) { std::cerr << "\nUsage: ./test configfile logdir seed mode intype weightfile(optional)\n\n"; return -1; }
 
-    std::srand(std::stoi(argv[2]));       // set seed
-    int MODE = std::stoi(argv[3]);
-    int INTYPE = std::stoi(argv[4]); // 0,1,2 Gaussian,Loaded,Camera input
+    std::srand(std::stoi(argv[3]));       // set seed
+    int MODE = std::stoi(argv[4]);
+    int INTYPE = std::stoi(argv[5]); // 0,1,2 Gaussian,Loaded,Camera input
 
     std::string paramsfile (argv[1]);
     Config conf(paramsfile);
     if (!conf.ready) { std::cerr << "Error setting up JSON config: " << conf.emsg << std::endl; return 1; }
+
+    std::string logpath = argv[2];
+    std::ofstream logfile;
+    morph::Tools::createDir (logpath);
+    { std::stringstream ss; ss << logpath << "/log.txt"; logfile.open(ss.str());}
+    logfile<<"Hello."<<std::endl;
 
     unsigned int nBlocks = conf.getUInt ("blocks", 100);
     unsigned int steps = conf.getUInt("steps", 100);
@@ -63,9 +69,9 @@ int main(int argc, char **argv){
         } break;
     }
 
-    if(argc>5){
-        std::cout<<"Using weight file: "<<argv[5]<<std::endl;
-        Net.load(argv[5]);
+    if(argc>6){
+        std::cout<<"Using weight file: "<<argv[6]<<std::endl;
+        Net.load(argv[6]);
     } else {
         std::cout<<"Using random weights"<<std::endl;
     }
@@ -97,7 +103,7 @@ int main(int argc, char **argv){
                 analysistimes.push_back(Net.time);
 
                 std::stringstream fname;
-                fname << "measures.h5";
+                fname << logpath << "/measures.h5";
                 morph::HdfData data(fname.str());
                 std::stringstream path;
                 path.str(""); path.clear(); path << "/frequency";
@@ -107,7 +113,7 @@ int main(int argc, char **argv){
                 path.str(""); path.clear(); path << "/times";
                 data.add_contained_vals (path.str().c_str(), analysistimes);
 
-                std::stringstream ss; ss << "weights_" << Net.time << ".h5";
+                std::stringstream ss; ss << logpath << "/weights_" << Net.time << ".h5";
                 Net.save(ss.str());
             }
         } break;
@@ -307,10 +313,6 @@ int main(int argc, char **argv){
                             avm->clearAutoscaleColour();
                         }
 
-                        if(saveplots){
-                            savePngs (argv[2], "model", framecount, v1);
-                        }
-                        framecount++;
                     }
 
                     std::chrono::steady_clock::duration sincerender = std::chrono::steady_clock::now() - lastrender;
@@ -339,7 +341,7 @@ int main(int argc, char **argv){
                 analysistimes.push_back(Net.time);
 
                 std::stringstream fname;
-                fname << "measures.h5";
+                fname << logpath << "/measures.h5";
                 morph::HdfData data(fname.str());
                 std::stringstream path;
                 path.str(""); path.clear(); path << "/frequency";
@@ -419,11 +421,6 @@ int main(int argc, char **argv){
                         graphY2[i] = yfit[i];
                     }
 
-                    /*
-                    for(int i=0;i<graphX.size();i++){
-                        graphZ[i] = fitCoeffs[3] + fitCoeffs[2]*exp((-(graphX[i]-fitCoeffs[0])*(graphX[i]-fitCoeffs[0]))/fitCoeffs[1]);
-                    }
-                    */
                     graphX3[0] = Net.IsoORfrequency;
                     graphX3[1] = Net.IsoORfrequency;
 
@@ -432,8 +429,14 @@ int main(int argc, char **argv){
                     gv->update (graphX3, graphY3, 2);
                 }
 
+                if(saveplots){
+                    savePngs (logpath, "model", framecount, v1);
+                    framecount++;
+                }
+
                 // SAVE NETWORK WEIGHTS
-                std::stringstream ss; ss << "weights_" << Net.time << ".h5";
+                std::stringstream ss; ss << logpath << "/weights.h5";
+                logfile<<"Weights saved at time: "<<Net.time<<std::endl;
                 Net.save(ss.str());
 
             }
