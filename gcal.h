@@ -99,13 +99,6 @@ class gcal : public Network {
 
         bool normAlphas = true;
 
-        // INITIALIZE LOGFILE
-        std::stringstream fname;
-        std::string logpath = conf.getString ("logpath", "logs/");
-        morph::Tools::createDir (logpath);
-        fname << logpath << "/log.h5";
-        morph::HdfData data(fname.str());
-
         // Mapping Between Hexagonal and Cartesian Sheet
         HCM.svgpath = conf.getString ("IN_svgpath", "boundaries/trialmod.svg");
         HCM.init();
