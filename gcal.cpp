@@ -143,12 +143,18 @@ int main(int argc, char **argv){
             std::vector<FLT> zeromap (Net.CX.nhex, static_cast<FLT>(0.0));
             std::vector<float> graphX(1,0);
             std::vector<float> graphY(1,0);
-            std::vector<float> graphZ(1,0);
-            std::vector<float> graphA(2,0);
-            std::vector<float> graphY2(2,0); graphY2[1] = 1.0;
+            std::vector<float> graphX2(1,0);
+            std::vector<float> graphY2(1,0);
+            std::vector<float> graphX3(2,0);
+            std::vector<float> graphY3(2,0); graphY3[1] = 1.0;
             float wid = 0.7;
             float hei = 0.7;
             morph::GraphVisual<float>* gv = new morph::GraphVisual<float> (v1.shaderprog, v1.tshaderprog, morph::Vector<float>{grid2offx+1.1f-wid*0.5f,0.0f-hei*0.5f,0.0f});
+
+
+            morph::ColourMap<FLT> hsv(morph::ColourMapType::Fixed);
+
+            HexGridVisualManual<FLT> prefMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(Net.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
 
 
             // ADD PLOTS TO SCENE
@@ -183,9 +189,10 @@ int main(int argc, char **argv){
                 morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             }
 
+
             {   // Cortex map preference display
-                grids2[0] = v1.addVisualModel (new morph::HexGridVisual<FLT>
-                                            (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid2offx+0.0f,0.0f,0.0f}, &(Net.orPref),zscale,cscale,morph::ColourMapType::Rainbow));
+
+                grids2[0] = v1.addVisualModel (&prefMapPlot);
 
                 v1.getVisualModel (grids2[0])->addLabel ("OR pref.", {-0.05f, txtoff, 0.0f},
                 morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
@@ -234,7 +241,7 @@ int main(int argc, char **argv){
                 ds2.markergap = 0.0;
                 ds2.linewidth = 0.01;
                 ds2.linecolour = {1.0, 0.0, 0.0};
-                gv->setdata (graphX, graphZ, ds2);
+                gv->setdata (graphX2, graphY2, ds2);
 
                 morph::DatasetStyle ds3;
                 ds3.markerstyle = morph::markerstyle::circle;
@@ -243,7 +250,7 @@ int main(int argc, char **argv){
                 ds3.markergap = 0.0;
                 ds3.linewidth = 0.01;
                 ds3.linecolour = {0.0, 0.0, 1.0};
-                gv->setdata (graphA, graphY2, ds3);
+                gv->setdata (graphX3, graphY3, ds3);
                 gv->finalize();
 
                 grids2[1] = v1.addVisualModel (static_cast<morph::VisualModel*>(gv));
@@ -346,6 +353,24 @@ int main(int argc, char **argv){
 
                 { // Map pref display
                     VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[0]);
+
+                    float maxSel = -1e9;
+                    float minSel = +1e9;
+                    for(int i=0;i<Net.CX.nhex;i++){
+                        if(maxSel<Net.orSel[i]){ maxSel=Net.orSel[i];}
+                        if(minSel>Net.orSel[i]){ minSel=Net.orSel[i];}
+                    }
+                    float rangeSel = 1./(maxSel-minSel);
+                    float overPi = 1./M_PI;
+
+                    for(int i=0;i<Net.CX.nhex;i++){
+
+                        std::array<float, 3> rgb = hsv.hsv2rgb(Net.orPref[i]*overPi,1.0,(Net.orSel[i]-minSel)*rangeSel);
+
+                        prefMapPlot.R[i] = rgb[0];
+                        prefMapPlot.G[i] = rgb[1];
+                        prefMapPlot.B[i] = rgb[2];
+                    }
                     avm->updateData (&(Net.orPref));
                     avm->clearAutoscaleColour();
                 }
@@ -371,18 +396,40 @@ int main(int argc, char **argv){
                 }
 
                 {   // Update histogram display
+
                     graphX = Net.binVals;
                     graphY = Net.histogram;
-                    graphZ.resize(graphX.size(),0);
+
+                    int nsamp = 1000;
+                    float xmax = Net.nBins*Net.sampleRange;
+
+                    arma::vec xfit(nsamp);
+                    graphX2.resize(nsamp,0);
+                    for(int i=0;i<nsamp;i++){
+                        graphX2[i] = xmax*(float)i/(float)(nsamp-1);
+                        xfit[i] = graphX2[i];
+                    }
+                    arma::vec cf(fitCoeffs.size());
+                    for(int i=0;i<fitCoeffs.size();i++){
+                        cf[i] = fitCoeffs[i];
+                    }
+                    arma::vec yfit = arma::polyval(cf,xfit);
+                    graphY2.resize(nsamp,0);
+                    for(int i=0;i<nsamp;i++){
+                        graphY2[i] = yfit[i];
+                    }
+
+                    /*
                     for(int i=0;i<graphX.size();i++){
                         graphZ[i] = fitCoeffs[3] + fitCoeffs[2]*exp((-(graphX[i]-fitCoeffs[0])*(graphX[i]-fitCoeffs[0]))/fitCoeffs[1]);
                     }
-                    graphA[0] = Net.IsoORfrequency;
-                    graphA[1] = Net.IsoORfrequency;
+                    */
+                    graphX3[0] = Net.IsoORfrequency;
+                    graphX3[1] = Net.IsoORfrequency;
 
                     gv->update (graphX, graphY, 0);
-                    gv->update (graphX, graphZ, 1);
-                    gv->update (graphA, graphY2, 2);
+                    gv->update (graphX2, graphY2, 1);
+                    gv->update (graphX3, graphY3, 2);
                 }
 
                 // SAVE NETWORK WEIGHTS

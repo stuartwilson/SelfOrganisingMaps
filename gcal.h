@@ -34,7 +34,7 @@ class gcal : public Network {
         std::vector<FLT> intersects;
         std::vector<FLT> binVals;
         std::vector<FLT> histogram;
-        int nBins, nPhase;
+        int nBins, nPhase, polyOrder;
         float pinwheelDensity;
 
     gcal(void){
@@ -89,6 +89,7 @@ class gcal : public Network {
         gratingWidth = conf.getFloat ("gratingWidth", 7.5);
 
         // analysis params
+        polyOrder = conf.getFloat ("polyOrder", 4);
         sampleRange = conf.getFloat ("sampleRange", 1.0);
         ROIwid = conf.getFloat ("ROIwid", 0.4);
         sampwid = conf.getUInt ("sampwid", 100);
@@ -433,37 +434,46 @@ class gcal : public Network {
             histogram[i] *= 0.5;
         }
 
-        // Offset histogram y values based on minimum from sample of lower spatial frequencies
+        // sample portion of histogram to fit
         int nsamp = nBins*sampleRange;
-        std::vector<float> xsamp(nsamp,0);
-        std::vector<float> ysamp(nsamp,0);
+        arma::vec xs(nsamp);
+        arma::vec ys(nsamp);
         for(int i=0;i<nsamp;i++){
-            xsamp[i] = binVals[i];
-            ysamp[i] = histogram[i];
+            xs[i] = binVals[i];
+            ys[i] = histogram[i];
         }
-        float histMinVal = 1e9;
-        for(int i=0;i<nsamp;i++){
-            if(ysamp[i]<histMinVal){
-                histMinVal = ysamp[i];
+
+        // do polynomial fit
+        arma::vec cf = arma::polyfit(xs,ys,polyOrder);
+
+        // make a high-resolution model for the data
+        int fitres = 1000;
+        arma::vec xfit(fitres);
+        for(int i=0;i<fitres;i++){
+            xfit[i] = binVals[nsamp-1]*(float)i/((float)fitres-1);
+        }
+        arma::vec yfit = arma::polyval(cf,xfit);
+
+        // get frequency at which high-res model peaks
+        float maxVal = -1e9;
+        float maxX = 0;
+        for(int i=0;i<fitres;i++){
+            if(yfit[i]>maxVal){
+                maxVal = yfit[i];
+                maxX = xfit[i];
             }
         }
 
-        for(int i=0;i<nsamp;i++){
-            ysamp[i] -= histMinVal;
+        IsoORfrequency = maxX; // units are cycles / ROI-width
+        IsoORcolumnSpacing = ROIwid / IsoORfrequency;  // spacing between iso-orientation columns in units of cortex sheet, e.g., to plot scale bar on maps
+
+        // return coeffs in standard vector
+        std::vector<float> coeffs(cf.size());
+        for(int i=0;i<cf.size();i++){
+            coeffs[i] = (float)cf[i];
         }
 
-        // Fit the (y-shifted) Guassian and obtain coefficients
-        std::array<float, 3> coeffs = GaussFit(xsamp,ysamp);
-
-        IsoORfrequency = coeffs[0];                     // units are cycles / ROI-width
-        IsoORcolumnSpacing = ROIwid / coeffs[0];  // spacing between iso-orientation columns in units of cortex sheet, e.g., to plot scale bar on maps
-
-        // return fit coefficients (e.g., for plotting)
-        std::vector<float> rtn(4,coeffs[0]);
-        rtn[1]=coeffs[1];
-        rtn[2]=coeffs[2];
-        rtn[3]=histMinVal;
-        return rtn;
+        return coeffs;
 
     }
 

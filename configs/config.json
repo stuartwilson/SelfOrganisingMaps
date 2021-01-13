@@ -39,8 +39,9 @@
 	"plotevery" : 10,
 	"scale" : 0.4,
 	"gratingWidth" : 7.5,
-	"sampleRange" : 0.25,
-	"gaussBlur" : 10
+	"sampleRange" : 0.5,
+	"polyOrder" : 4,
+	"gaussBlur" : 0
 
 }
 
