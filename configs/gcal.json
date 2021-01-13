@@ -1,5 +1,4 @@
 {
-    	"logpath" : "logs",
 	"IN_svgpath" : "boundaries/circle.svg",
 	"LGN_svgpath" : "boundaries/circle.svg",
 	"CX_svgpath" : "boundaries/circle.svg",
