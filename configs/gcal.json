@@ -41,7 +41,8 @@
 	"gratingWidth" : 7.5,
 	"sampleRange" : 0.5,
 	"polyOrder" : 4,
-	"gaussBlur" : 0
+	"gaussBlur" : 0,
+	"saveplots" : false
 
 }
 
