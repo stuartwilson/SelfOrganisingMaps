@@ -12,9 +12,9 @@ cd ..
 
 Then run model using e.g., 
 
-'''
+```
 ./build/SelfOrganisingMaps configs/gcal.json logdir 1 1 0
-'''
+```
 
 The final 3 numbers are
 1. random seed
