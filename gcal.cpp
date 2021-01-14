@@ -1,4 +1,5 @@
 #include "gcal.h"
+#include "analysis.h"
 
 #include <morph/HdfData.h>
 #include <morph/Config.h>
@@ -38,8 +39,10 @@ int main(int argc, char **argv){
     unsigned int steps = conf.getUInt("steps", 100);
 
     // Creates the network
-    gcal Net;
-    Net.init(conf);
+    gcal Net(conf);
+
+    // Creates the analyser object
+    orientationPinwheelDensity analysis(&Net, &Net.IN, &Net.CX);
 
     // storage vectors
     std::vector<float> pincounts;
@@ -87,19 +90,19 @@ int main(int argc, char **argv){
                 }
 
                 // DO ORIENTATION MAP ANALYSIS
-                Net.updateORresponses();
-                Net.updateORpreferences();
-                Net.updateIsoORcontoursPrefs();
-                Net.updateROIpinwheelCount();
-                std::vector<float> fitCoeffs = Net.updateIsoORfrequencyEstimate();
-                Net.updatePinwheelDensity();
+                analysis.updateORresponses();
+                analysis.updateORpreferences();
+                analysis.updateIsoORcontoursPrefs();
+                analysis.updateROIpinwheelCount();
+                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate();
+                analysis.updatePinwheelDensity();
 
                 std::cout<<"steps: "<<b*steps<<std::endl;
-                Net.printPinwheelDensity();
+                analysis.printPinwheelDensity();
 
                 // SAVE METRIC INFO
-                pincounts.push_back(Net.ROIpinwheelCount);
-                frequencies.push_back(Net.IsoORfrequency);
+                pincounts.push_back(analysis.ROIpinwheelCount);
+                frequencies.push_back(analysis.IsoORfrequency);
                 analysistimes.push_back(Net.time);
 
                 std::stringstream fname;
@@ -160,7 +163,7 @@ int main(int argc, char **argv){
 
             morph::ColourMap<FLT> hsv(morph::ColourMapType::Fixed);
 
-            HexGridVisualManual<FLT> prefMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(Net.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+            HexGridVisualManual<FLT> prefMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
 
 
             // ADD PLOTS TO SCENE
@@ -206,7 +209,7 @@ int main(int argc, char **argv){
 
             {   // Cortex map preference display
                 grids2[2] = v1.addVisualModel (new morph::HexGridVisual<FLT>
-                                            (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid2offx+0.0f,1.0f,0.0f}, &(Net.orSel),zscale,cscale,morph::ColourMapType::GreyscaleInv));
+                                            (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid2offx+0.0f,1.0f,0.0f}, &(analysis.orSel),zscale,cscale,morph::ColourMapType::GreyscaleInv));
 
                 v1.getVisualModel (grids2[2])->addLabel ("OR sel.", {-0.05f, txtoff, 0.0f},
                 morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
@@ -237,7 +240,7 @@ int main(int argc, char **argv){
                 gv->ylabel="FFT magnitude";
                 gv->setsize(wid,hei);
 
-                gv->setlimits (0,(float)Net.sampwid*0.5,0,1.0); // plot up to nyquist (pixels / 2)
+                gv->setlimits (0,(float)analysis.sampwid*0.5,0,1.0); // plot up to nyquist (pixels / 2)
                 gv->setdata (graphX, graphY, ds);
 
                 morph::DatasetStyle ds2;
@@ -327,17 +330,17 @@ int main(int argc, char **argv){
                 std::cout<<"steps: "<<b*steps<<std::endl;
 
                 // DO ORIENTATION MAP ANALYSIS
-                Net.updateORresponses();
-                Net.updateORpreferences();
-                Net.updateIsoORcontoursPrefs();
-                Net.updateROIpinwheelCount();
-                std::vector<float> fitCoeffs = Net.updateIsoORfrequencyEstimate();
-                Net.updatePinwheelDensity();
-                Net.printMetricInfo();
+                analysis.updateORresponses();
+                analysis.updateORpreferences();
+                analysis.updateIsoORcontoursPrefs();
+                analysis.updateROIpinwheelCount();
+                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate();
+                analysis.updatePinwheelDensity();
+                analysis.printMetricInfo();
 
                 // SAVE METRIC INFO
-                pincounts.push_back(Net.ROIpinwheelCount);
-                frequencies.push_back(Net.IsoORfrequency);
+                pincounts.push_back(analysis.ROIpinwheelCount);
+                frequencies.push_back(analysis.IsoORfrequency);
                 analysistimes.push_back(Net.time);
 
                 std::stringstream fname;
@@ -359,36 +362,36 @@ int main(int argc, char **argv){
                     float maxSel = -1e9;
                     float minSel = +1e9;
                     for(int i=0;i<Net.CX.nhex;i++){
-                        if(maxSel<Net.orSel[i]){ maxSel=Net.orSel[i];}
-                        if(minSel>Net.orSel[i]){ minSel=Net.orSel[i];}
+                        if(maxSel<analysis.orSel[i]){ maxSel=analysis.orSel[i];}
+                        if(minSel>analysis.orSel[i]){ minSel=analysis.orSel[i];}
                     }
                     float rangeSel = 1./(maxSel-minSel);
                     float overPi = 1./M_PI;
 
                     for(int i=0;i<Net.CX.nhex;i++){
 
-                        std::array<float, 3> rgb = hsv.hsv2rgb(Net.orPref[i]*overPi,1.0,(Net.orSel[i]-minSel)*rangeSel);
+                        std::array<float, 3> rgb = hsv.hsv2rgb(analysis.orPref[i]*overPi,1.0,(analysis.orSel[i]-minSel)*rangeSel);
 
                         prefMapPlot.R[i] = rgb[0];
                         prefMapPlot.G[i] = rgb[1];
                         prefMapPlot.B[i] = rgb[2];
                     }
-                    avm->updateData (&(Net.orPref));
+                    avm->updateData (&(analysis.orPref));
                     avm->clearAutoscaleColour();
                 }
 
                 { // Map pref display
                     VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[2]);
-                    avm->updateData (&(Net.orSel));
+                    avm->updateData (&(analysis.orSel));
                     avm->clearAutoscaleColour();
                 }
 
                 { // Plot OR contours
                     std::vector<FLT> ctrmap(Net.CX.nhex,0.);
                     for(int k=0;k<ctrmap.size();k++){
-                        if(Net.IsoORcontours[0][k]){ ctrmap[k]=0.25; }
-                        if(Net.IsoORcontours[1][k]){ ctrmap[k]=0.75; }
-                        if(Net.IsoORcontours[0][k] && Net.IsoORcontours[1][k]){
+                        if(analysis.IsoORcontours[0][k]){ ctrmap[k]=0.25; }
+                        if(analysis.IsoORcontours[1][k]){ ctrmap[k]=0.75; }
+                        if(analysis.IsoORcontours[0][k] && analysis.IsoORcontours[1][k]){
                             ctrmap[k]=1.0;
                         }
                     }
@@ -399,11 +402,11 @@ int main(int argc, char **argv){
 
                 {   // Update histogram display
 
-                    graphX = Net.binVals;
-                    graphY = Net.histogram;
+                    graphX = analysis.binVals;
+                    graphY = analysis.histogram;
 
                     int nsamp = 1000;
-                    float xmax = Net.nBins*Net.sampleRange;
+                    float xmax = analysis.nBins*analysis.sampleRange;
 
                     arma::vec xfit(nsamp);
                     graphX2.resize(nsamp,0);
@@ -421,8 +424,8 @@ int main(int argc, char **argv){
                         graphY2[i] = yfit[i];
                     }
 
-                    graphX3[0] = Net.IsoORfrequency;
-                    graphX3[1] = Net.IsoORfrequency;
+                    graphX3[0] = analysis.IsoORfrequency;
+                    graphX3[1] = analysis.IsoORfrequency;
 
                     gv->update (graphX, graphY, 0);
                     gv->update (graphX2, graphY2, 1);

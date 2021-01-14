@@ -5,43 +5,21 @@
 #include <morph/HdfData.h>
 #include <morph/Config.h>
 
-using morph::Config;
-using morph::Tools;
-
-class gcal : public Network {
+class gcal : public Network<FLT> {
 
     public:
 
         HexCartSampler<FLT> HCM;
-        CartHexSampler<FLT> CHM;
         PatternGenerator_Sheet<FLT> IN;
         NormByFirstProjection<FLT> LGN_ON, LGN_OFF;
         CortexSOM<FLT> CX;
-        bool homeostasis, plotSettling;
+        bool homeostasis;
         unsigned int settle, nGauss;
         float beta, lambda, mu, thetaInit, xRange, yRange, afferAlpha, excitAlpha, inhibAlpha;
-        float afferStrength, excitStrength, inhibStrength, LGNstrength, scale, lrscale, pscale, gainControlStrength, gainControlOffset;
-        float sigmaA, sigmaB, afferRadius, excitRadius, inhibRadius, afferSigma, excitSigma, inhibSigma, LGNCenterSigma, LGNSurroundSigma, amplitude, gratingWidth;
+        float afferStrength, excitStrength, inhibStrength, LGNstrength, lrscale, pscale, gainControlStrength, gainControlOffset;
+        float sigmaA, sigmaB, afferRadius, excitRadius, inhibRadius, afferSigma, excitSigma, inhibSigma, LGNCenterSigma, LGNSurroundSigma;
 
-        // Analysis variables
-        std::vector<std::vector<float> > orResponse;
-        std::vector<std::vector<float> > orResponseSampled;
-        int sampwid, gaussBlur;
-        float ROIwid, ROIpinwheelCount, IsoORfrequency, IsoORcolumnSpacing, sampleRange;
-        std::vector<FLT> orPref;
-        std::vector<FLT> orSel;
-        std::vector<std::vector<FLT> > IsoORcontours;
-        std::vector<FLT> intersects;
-        std::vector<FLT> binVals;
-        std::vector<FLT> histogram;
-        int nBins, nPhase, polyOrder;
-        float pinwheelDensity;
-
-    gcal(void){
-        plotSettling = false;
-    }
-
-    void init(Config conf){
+    gcal(morph::Config conf) : Network(conf){
 
         // GET PARAMS FROM JSON
         homeostasis = conf.getBool ("homeostasis", true);
@@ -73,29 +51,19 @@ class gcal : public Network {
         gainControlOffset = conf.getFloat ("gainControlOffset", 0.11);
 
         // spatial params
-        scale = conf.getFloat ("scale", 0.5);
-        sigmaA = conf.getFloat ("sigmaA", 1.0) * scale;
-        sigmaB = conf.getFloat ("sigmaB", 0.3) * scale;
-        afferRadius = conf.getFloat ("afferRadius", 0.27) * scale;
-        excitRadius = conf.getFloat ("excitRadius", 0.1) * scale;
-        inhibRadius = conf.getFloat ("inhibRadius", 0.23) * scale;
-        afferSigma = conf.getFloat ("afferSigma", 0.270) * scale;
-        excitSigma = conf.getFloat ("excitSigma", 0.025) * scale;
-        inhibSigma = conf.getFloat ("inhibSigma", 0.075) * scale;
-        LGNCenterSigma = conf.getFloat ("LGNCenterSigma", 0.037) * scale;
-        LGNSurroundSigma = conf.getFloat ("LGNSuroundSigma", 0.150) * scale;
+        spatialScale = conf.getFloat ("scale", 0.5);
+        //float spatialScale=0.4;
+        sigmaA = conf.getFloat ("sigmaA", 1.0) * spatialScale;
+        sigmaB = conf.getFloat ("sigmaB", 0.3) * spatialScale;
+        afferRadius = conf.getFloat ("afferRadius", 0.27) * spatialScale;
+        excitRadius = conf.getFloat ("excitRadius", 0.1) * spatialScale;
+        inhibRadius = conf.getFloat ("inhibRadius", 0.23) * spatialScale;
+        afferSigma = conf.getFloat ("afferSigma", 0.270) * spatialScale;
+        excitSigma = conf.getFloat ("excitSigma", 0.025) * spatialScale;
+        inhibSigma = conf.getFloat ("inhibSigma", 0.075) * spatialScale;
+        LGNCenterSigma = conf.getFloat ("LGNCenterSigma", 0.037) * spatialScale;
+        LGNSurroundSigma = conf.getFloat ("LGNSuroundSigma", 0.150) * spatialScale;
 
-        amplitude = conf.getFloat ("amplitude", 1.0);
-        gratingWidth = conf.getFloat ("gratingWidth", 7.5);
-
-        // analysis params
-        polyOrder = conf.getFloat ("polyOrder", 4);
-        sampleRange = conf.getFloat ("sampleRange", 1.0);
-        ROIwid = conf.getFloat ("ROIwid", 0.4);
-        sampwid = conf.getUInt ("sampwid", 100);
-        gaussBlur = conf.getUInt ("gaussBlur", 1);
-        nBins = conf.getUInt ("nBins", 50);
-        nPhase = conf.getUInt ("nPhase", 8);
 
         bool normAlphas = true;
 
@@ -161,14 +129,11 @@ class gcal : public Network {
         CX.setNormalize(std::vector<int>(1,3));
         CX.renormalize();
 
-        CHM.initProjection(sampwid,sampwid,ROIwid,ROIwid,CX.Xptr,CX.hg, 0.05, 0.001);
-        orPref.resize(CX.nhex,0.);
-        orSel.resize(CX.nhex,0.);
-        IsoORcontours.resize(2,std::vector<FLT>(CX.nhex,0.));
-        binVals.resize(nBins,0.);
-        histogram.resize(nBins,0.);
-        intersects.resize(CX.nhex,0.);
+    }
 
+    void stepHidden(void){
+        LGN_ON.step();
+        LGN_OFF.step();
     }
 
     void stepAfferent(unsigned type){
@@ -186,7 +151,7 @@ class gcal : public Network {
                     t[i] = morph::Tools::randDouble()*M_PI;
                     sA[i] = sigmaA;
                     sB[i] = sigmaB;
-                    amp[i] = amplitude;
+                    amp[i] = 1.0;
                 }
                 IN.Gaussian(x,y,t,sA,sB,amp);
             } break;
@@ -206,9 +171,7 @@ class gcal : public Network {
                 IN.X = HCM.X;
             }
         }
-        LGN_ON.step();
-        LGN_OFF.step();
-
+        stepHidden();
     }
 
     void stepCortex(void){
@@ -252,241 +215,4 @@ class gcal : public Network {
     ~gcal(void){ }
 
 
-    void updateORresponses(void){
-
-        // OR ANALYSIS STEP 1. RECORD (MAX) RESPONSE TO ORIENTATIONS 0, 45, 90, 135.
-
-        int n = CX.nhex;
-        int nOr = 4;
-        double phaseInc = M_PI/(double)nPhase;
-        std::vector<float> maxPhase(n,0.);
-        orResponse.resize(nOr);
-        orResponseSampled.resize(nOr);
-        std::vector<int> aff(2,0); aff[1]=1;
-        std::vector<float> theta(nOr);
-        for(unsigned int i=0;i<nOr;i++){
-            theta[i] = i*M_PI/(double)nOr;
-        }
-        for(unsigned int i=0;i<nOr;i++){
-            std::fill(maxPhase.begin(),maxPhase.end(),-1e9);
-            for(unsigned int j=0;j<nPhase;j++){
-                double phase = j*phaseInc;
-                IN.Grating(theta[i],phase,gratingWidth/scale,1.0);
-                LGN_ON.step();
-                LGN_OFF.step();
-
-                CX.zero_X();
-                CX.step(aff);
-                for(int k=0;k<n;k++){
-                    if(maxPhase[k]<CX.X[k]){
-                        maxPhase[k] = CX.X[k];
-                    }
-                }
-            }
-            orResponse[i]=maxPhase;
-
-            // tmp copy of max (over phases) response on cortex
-            for(int k=0;k<n;k++){
-                CX.X[k] = maxPhase[k];
-            }
-            // subsample the response and store a copy
-            CHM.step();
-            std::vector<float> r(CHM.C.n);
-            for(int k=0;k<CHM.C.n;k++){
-                r[k] = CHM.C.vsquare[k].X;
-            }
-            orResponseSampled[i] = r;
-        }
-    }
-
-    void updateORpreferences(void){
-
-        // ANALYSIS STEP 2. MEASURE ORIENTATION PREFERENCE & SELECTIVITY
-
-        // Get orientation preference and selectivity
-        int nOr = 4;
-        std::vector<float> theta(nOr);
-        for(unsigned int i=0;i<nOr;i++){
-            theta[i] = i*M_PI/(double)nOr;
-        }
-        for(int i=0;i<CX.nhex;i++){
-            float vx = 0.;
-            float vy = 0.;
-            for(int j=0;j<nOr;j++){
-                vx += orResponse[j][i] * cos(2.0*theta[j]);
-                vy += orResponse[j][i] * sin(2.0*theta[j]);
-            }
-            orPref[i] = 0.5*(atan2(vy,vx)+M_PI);
-            orSel[i] = pow(vy*vy+vx*vx,0.5);
-        }
-    }
-
-    void updateIsoORcontoursDiffs(void){
-
-        // ANALYSIS STEP 3. COMPUTE ISO-ORIENTATION CONTOURS (From Difference Images)
-
-        // Diff of response to 0 and 90 degree stimuli (on original hex grid)
-        std::vector<float> df1 = orResponse[0];
-        for(int i=0;i<df1.size();i++){
-            df1[i] -= orResponse[2][i];
-        }
-
-        // Diff of response to 45 and 135 degree stimuli (on original hex grid)
-        std::vector<float> df2 = orResponse[1];
-        for(int i=0;i<df2.size();i++){
-            df2[i] -= orResponse[3][i];
-        }
-
-        // Get zero-crossings of the two response difference maps
-        IsoORcontours[0] = get_contour_map(CX.hg, df1, 0.0);
-        IsoORcontours[1] = get_contour_map(CX.hg, df2, 0.0);
-
-    }
-
-    void updateIsoORcontoursPrefs(void){
-
-        // ANALYSIS STEP 3. COMPUTE ISO-ORIENTATION CONTOURS (From Preferences)
-
-        std::vector<float> real(CX.nhex,0.);
-        std::vector<float> imag(CX.nhex,0.);
-        for(int i=0;i<CX.nhex;i++){
-            real[i] = cos(orPref[i]*2.0);
-            imag[i] = sin(orPref[i]*2.0);
-        }
-
-        // Get zero-crossings of the two response difference maps
-        IsoORcontours[0] = get_contour_map(CX.hg, real, 0.0);
-        IsoORcontours[1] = get_contour_map(CX.hg, imag, 0.0);
-
-    }
-
-    void updateROIpinwheelCount(void){
-
-        // ANALYSIS STEP 4. COUNT PINWHEELS WITHIN ROI
-
-        intersects = IsoORcontours[0];
-        for(int k=0;k<CX.nhex;k++){
-            intersects[k] *= IsoORcontours[1][k];
-        }
-
-        // remove neighbouring intersects (these are fractures)
-        int countSpurious = 0;
-        for(int i=0;i<CX.nhex;i++){
-            if(intersects[i]==1){
-
-                bool remSelf = false;
-
-                if(CX.hg->d_ne[i] !=-1){ if(intersects[CX.hg->d_ne[i]] ==1){ intersects[CX.hg->d_ne[i]] =0; countSpurious++; remSelf = true;} }
-                if(CX.hg->d_nne[i]!=-1){ if(intersects[CX.hg->d_nne[i]]==1){ intersects[CX.hg->d_nne[i]]=0; countSpurious++; remSelf = true;} }
-                if(CX.hg->d_nnw[i]!=-1){ if(intersects[CX.hg->d_nnw[i]]==1){ intersects[CX.hg->d_nnw[i]]=0; countSpurious++; remSelf = true;} }
-                if(CX.hg->d_nw[i] !=-1){ if(intersects[CX.hg->d_nw[i]] ==1){ intersects[CX.hg->d_nw[i]] =0; countSpurious++; remSelf = true;} }
-                if(CX.hg->d_nsw[i]!=-1){ if(intersects[CX.hg->d_nsw[i]]==1){ intersects[CX.hg->d_nsw[i]]=0; countSpurious++; remSelf = true;} }
-                if(CX.hg->d_nse[i]!=-1){ if(intersects[CX.hg->d_nse[i]]==1){ intersects[CX.hg->d_nse[i]]=0; countSpurious++; remSelf = true;} }
-
-                if (remSelf) { countSpurious++; intersects[i] = 0; }
-            }
-        }
-
-        std::cout<<"Spurious crossings removed : "<<countSpurious<<std::endl;
-
-        // count within ROI
-        float halfWid = ROIwid*0.5;
-        int count=0;
-        for(int k=0;k<CX.nhex;k++){
-            if((fabs(CX.hg->vhexen[k]->x)<halfWid)&&(fabs(CX.hg->vhexen[k]->y)<halfWid)){
-                if(intersects[k]){
-                    count++;
-                }
-            }
-        }
-        ROIpinwheelCount = (float)count;
-
-    }
-
-
-    std::vector<float> updateIsoORfrequencyEstimate(void){
-
-        // ANALYSIS STEP 5. ESTIMATE ISO-ORIENTATION COLUMN SPACING
-
-        binVals.resize(nBins,0.);
-        histogram.resize(nBins,0.);
-
-        // Get frequency histogram from response to 0-90 degrees
-        cv::Mat I1 = CHM.getDifferenceImage(orResponseSampled[0],orResponseSampled[2]);
-        std::vector<std::vector<float> > h1 = CHM.fft(I1, nBins, gaussBlur, true);
-
-        // Get frequency histogram from response to 45-135 degrees
-        cv::Mat I2 = CHM.getDifferenceImage(orResponseSampled[1],orResponseSampled[3]);
-        std::vector<std::vector<float> > h2 = CHM.fft(I2, nBins, gaussBlur, true);
-
-        // add together two histograms (maybe should be done before combining?)
-        binVals = h2[0];      // get histogram bin mid-values
-        histogram = h1[1];
-        for(int i=0;i<nBins;i++){
-            histogram[i] += h2[1][i];
-            histogram[i] *= 0.5;
-        }
-
-        // sample portion of histogram to fit
-        int nsamp = nBins*sampleRange;
-        arma::vec xs(nsamp);
-        arma::vec ys(nsamp);
-        for(int i=0;i<nsamp;i++){
-            xs[i] = binVals[i];
-            ys[i] = histogram[i];
-        }
-
-        // do polynomial fit
-        arma::vec cf = arma::polyfit(xs,ys,polyOrder);
-
-        // make a high-resolution model for the data
-        int fitres = 1000;
-        arma::vec xfit(fitres);
-        for(int i=0;i<fitres;i++){
-            xfit[i] = binVals[nsamp-1]*(float)i/((float)fitres-1);
-        }
-        arma::vec yfit = arma::polyval(cf,xfit);
-
-        // get frequency at which high-res model peaks
-        float maxVal = -1e9;
-        float maxX = 0;
-        for(int i=0;i<fitres;i++){
-            if(yfit[i]>maxVal){
-                maxVal = yfit[i];
-                maxX = xfit[i];
-            }
-        }
-
-        IsoORfrequency = maxX; // units are cycles / ROI-width
-        IsoORcolumnSpacing = ROIwid / IsoORfrequency;  // spacing between iso-orientation columns in units of cortex sheet, e.g., to plot scale bar on maps
-
-        // return coeffs in standard vector
-        std::vector<float> coeffs(cf.size());
-        for(int i=0;i<cf.size();i++){
-            coeffs[i] = (float)cf[i];
-        }
-
-        return coeffs;
-
-    }
-
-    void updatePinwheelDensity(void){
-
-        // ANALYSIS STEP 6. CALCULATE PINWHEEL DENSITY
-        pinwheelDensity = ROIpinwheelCount / (IsoORfrequency*IsoORfrequency);
-    }
-
-    void printPinwheelDensity(void){
-        std::cout<<"Pinwheel density: "<<pinwheelDensity<<std::endl;
-    }
-
-    void printMetricInfo(void){
-        std::cout<<"Peak frequency = q = "<<IsoORfrequency<<" cycles/ROI_width."<<std::endl;
-        std::cout<<"Wavelength = 1/q = "<<1./IsoORfrequency<<" ROI_widths."<<std::endl;
-        std::cout<<"Column spacing = lambda = wavelen. * ROI_width = "<<IsoORcolumnSpacing<<" cortex unit distance."<<std::endl;
-        std::cout<<"Pinwheel count: "<<ROIpinwheelCount<<std::endl;
-        std::cout<<"Pinwheel density: "<<pinwheelDensity<< std::endl<<std::endl;
-    }
-
 };
-

@@ -3,6 +3,7 @@
 #include <morph/RD_Base.h>
 #include <morph/Config.h>
 
+template <class Flt>
 class Network{
 
     /*
@@ -11,12 +12,20 @@ class Network{
 
     public:
         int time;
+        float spatialScale;
+        morph::Config conf;
 
-    Network(void){
+    Network(morph::Config conf){
         time = 0;
+        spatialScale = 1.0;
+        this->conf = conf;
     };
 
-    virtual void init(morph::Config){
+    virtual void stepHidden(void){
+        // overwrite this in derived classes to expose the hidden transforms within a network (e.g., thalamic processes between sensors and cortex) to other objects that have a pointer to the network
+    }
+
+    ~Network(void){
 
     }
 
@@ -303,9 +312,9 @@ public:
     }
 
     virtual void step (void) {
+
         this->stepCount++;
         this->zero_X();
-
         // indexing from 1 here assumes first projection is the divisive normalizer
         for(unsigned int i=1;i<this->Projections.size();i++){
             this->Projections[i].getWeightedSum();
