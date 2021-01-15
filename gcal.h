@@ -28,8 +28,8 @@ class gcal : public Network<FLT> {
         // homeostasis
         beta = conf.getFloat ("beta", 0.991);
         lambda = conf.getFloat ("lambda", 0.01);
-        mu = conf.getFloat ("thetaInit", 0.15);
-        thetaInit = conf.getFloat ("mu", 0.024);
+        thetaInit = conf.getFloat ("thetaInit", 0.00);
+        mu = conf.getFloat ("mu", 0.024);
 
         xRange = conf.getFloat ("xRange", 2.0);
         yRange = conf.getFloat ("yRange", 2.0);

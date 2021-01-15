@@ -163,7 +163,10 @@ int main(int argc, char **argv){
 
             morph::ColourMap<FLT> hsv(morph::ColourMapType::Fixed);
 
-            HexGridVisualManual<FLT> prefMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+            HexGridVisualManual<FLT> prefSelMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+
+            HexGridVisualManual<FLT> prefMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,1.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+
 
 
             // ADD PLOTS TO SCENE
@@ -199,19 +202,18 @@ int main(int argc, char **argv){
             }
 
 
-            {   // Cortex map preference display
+            {   // Cortex map preference and selectivity display
 
-                grids2[0] = v1.addVisualModel (&prefMapPlot);
+                grids2[0] = v1.addVisualModel (&prefSelMapPlot);
 
-                v1.getVisualModel (grids2[0])->addLabel ("OR pref.", {-0.05f, txtoff, 0.0f},
+                v1.getVisualModel (grids2[0])->addLabel ("OR pref*sel", {-0.05f, txtoff, 0.0f},
                 morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             }
 
             {   // Cortex map preference display
-                grids2[2] = v1.addVisualModel (new morph::HexGridVisual<FLT>
-                                            (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid2offx+0.0f,1.0f,0.0f}, &(analysis.orSel),zscale,cscale,morph::ColourMapType::GreyscaleInv));
+                grids2[2] = v1.addVisualModel (&prefMapPlot);
 
-                v1.getVisualModel (grids2[2])->addLabel ("OR sel.", {-0.05f, txtoff, 0.0f},
+                v1.getVisualModel (grids2[2])->addLabel ("OR pref", {-0.05f, txtoff, 0.0f},
                 morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             }
 
@@ -357,7 +359,7 @@ int main(int argc, char **argv){
                 // UPDATE MAP DISPLAYS
 
                 { // Map pref display
-                    VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[0]);
+
 
                     float maxSel = -1e9;
                     float minSel = +1e9;
@@ -370,12 +372,22 @@ int main(int argc, char **argv){
 
                     for(int i=0;i<Net.CX.nhex;i++){
 
-                        std::array<float, 3> rgb = hsv.hsv2rgb(analysis.orPref[i]*overPi,1.0,(analysis.orSel[i]-minSel)*rangeSel);
+                        float pref = analysis.orPref[i]*overPi;
+                        std::array<float, 3> rgb1 = hsv.hsv2rgb(pref,1.0,1.0);
+                        prefMapPlot.R[i] = rgb1[0];
+                        prefMapPlot.G[i] = rgb1[1];
+                        prefMapPlot.B[i] = rgb1[2];
 
-                        prefMapPlot.R[i] = rgb[0];
-                        prefMapPlot.G[i] = rgb[1];
-                        prefMapPlot.B[i] = rgb[2];
+                        float sel = (analysis.orSel[i]-minSel)*rangeSel;
+                        std::array<float, 3> rgb2 = hsv.hsv2rgb(pref,1.0,sel);
+                        prefSelMapPlot.R[i] = rgb2[0];
+                        prefSelMapPlot.G[i] = rgb2[1];
+                        prefSelMapPlot.B[i] = rgb2[2];
                     }
+
+                }
+                {
+                    VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[0]);
                     avm->updateData (&(analysis.orPref));
                     avm->clearAutoscaleColour();
                 }

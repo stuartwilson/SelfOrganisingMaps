@@ -9,7 +9,7 @@
 	"beta" : 0.991,
 	"lambda" : 0.01,
 	"mu" : 0.024,
-	"thetaInit" : 0.20,
+	"thetaInit" : 0.00,
 	"xRange" : 0.75,
 	"yRange" : 0.75,
 	"afferStrength" : 1.5,
@@ -45,4 +45,4 @@
 
 }
 
-# NOTE THAT THESE PARAMETER VALUES ARE IDENTICAL TO THOSE REPORTED IN THE STEVENS ET AL. PAPER, EXCEPT FOR retinaLGNstrenfgtn, gainControlStrength, AND gainControlOffset, WHICH ARE 14, 0.6, and 0.11 IN THE PAPER, RESPECTIVELY
+# NOTE THAT THESE PARAMETER VALUES ARE IDENTICAL TO THOSE REPORTED IN THE STEVENS ET AL. PAPER, EXCEPT FOR thetaInit, which is 0.15 in the paper

@@ -12,27 +12,18 @@ f1 = F.add_subplot(111)
 
 legend = []
 tmax = 0
-if(n<2):
-    h = h5py.File('measures.h5','r')
+
+for i in range(1,n):
+    fname = sys.argv[i]
+    legend.append(fname)
+    h = h5py.File(fname,'r')
     pins = h['pincount'][:]
     fqs = h['frequency'][:]
     t = h['times'][:]
     h.close()
     density = pins / (fqs**2)
     f1.plot(t,density,color=(0,0,0),linewidth=lw)
-    tmax = t[-1]
-else:
-    for i in range(1,n):
-        fname = sys.argv[i]
-        legend.append(fname)
-        h = h5py.File(fname,'r')
-        pins = h['pincount'][:]
-        fqs = h['frequency'][:]
-        t = h['times'][:]
-        h.close()
-        density = pins / (fqs**2)
-        f1.plot(t,density,color=(0,0,0),linewidth=lw)
-        if(t[-1]>tmax): tmax=t[-1]
+    if(t[-1]>tmax): tmax=t[-1]
 
 f1.plot([0,tmax],[np.pi,np.pi],'--')
 f1.axis([0,tmax,0,100])
