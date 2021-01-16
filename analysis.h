@@ -14,6 +14,7 @@ class orientationPinwheelDensity {
     std::vector<std::vector<FLT> > IsoORcontours;
     int nBins, nPhase, polyOrder, sampwid, gaussBlur, nOr;
     float pinwheelDensity;
+    std::vector<float> Freq;
 
     PatternGenerator_Sheet<FLT>* In;
     CortexSOM<FLT>* Out;
@@ -32,6 +33,12 @@ class orientationPinwheelDensity {
         gaussBlur = Net->conf.getUInt ("gaussBlur", 1);
         nBins = Net->conf.getUInt ("nBins", 50);
         nPhase = Net->conf.getUInt ("nPhase", 8);
+
+
+        const Json::Value freq = Net->conf.getArray ("freq");
+        for (int i=0; i<freq.size(); i++) {
+            Freq.push_back(freq[i].asFloat());
+        }
 
         gratingWidth = 7.5;
         amplitude = 1.0;
@@ -61,6 +68,9 @@ class orientationPinwheelDensity {
         std::vector<int> aff(2,0); aff[1]=1;
         std::vector<float> theta(nOr);
 
+        int nFreq = Freq.size();
+
+
         for(unsigned int i=0;i<nOr;i++){
             theta[i] = i*M_PI/(double)nOr;
         }
@@ -68,13 +78,15 @@ class orientationPinwheelDensity {
             std::fill(maxPhase.begin(),maxPhase.end(),-1e9);
             for(unsigned int j=0;j<nPhase;j++){
                 double phase = j*phaseInc;
-                In->Grating(theta[i],phase,gratingWidth/Net->spatialScale,1.0);
-                Net->stepHidden();
-                Out->zero_X();
-                Out->step(aff);
-                for(int k=0;k<n;k++){
-                    if(maxPhase[k]<Out->X[k]){
-                        maxPhase[k] = Out->X[k];
+                for(unsigned int k=0;k<nFreq;k++){
+                    In->Grating(theta[i],phase,Freq[k]/Net->spatialScale,1.0);
+                    Net->stepHidden();
+                    Out->zero_X();
+                    Out->step(aff);
+                    for(int l=0;l<n;l++){
+                        if(maxPhase[l]<Out->X[l]){
+                            maxPhase[l] = Out->X[l];
+                        }
                     }
                 }
             }

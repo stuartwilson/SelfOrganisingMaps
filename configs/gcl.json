@@ -28,7 +28,7 @@
 	"inhibSigma" : 0.075,
 	"LGNCenterSigma": 0.037,
 	"LGNSuroundSigma": 0.150,
-	"patterns" : "configs/testPatterns.h5",
+	"patterns" : "configs/natural.h5",
 	"win_height" : 800,
 	"win_width" : 1000,
 	"plotevery" : 10,
@@ -37,7 +37,8 @@
 	"sampleRange" : 0.5,
 	"polyOrder" : 4,
 	"gaussBlur" : 0,
-	"saveplots" : false
+	"saveplots" : false,
+	"freq" : [5.0,7.5,10.0,15.0]
 
 }
 
