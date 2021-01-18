@@ -42,8 +42,9 @@
 	"polyOrder" : 4,
 	"gaussBlur" : 0,
 	"saveplots" : false,
-	"freq" : [5.0,7.5,10.0,15.0]
-
+	"patternSampleRows" : 100,
+	"patternSampleCols" : 100,
+	"freq" : [14.0,16.0,18.0,20.0,22.0,24.0]
 }
 
 # NOTE THAT THESE PARAMETER VALUES ARE IDENTICAL TO THOSE REPORTED IN THE STEVENS ET AL. PAPER, EXCEPT FOR thetaInit, which is 0.15 in the paper
