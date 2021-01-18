@@ -13,7 +13,7 @@ cd ..
 Then run model using e.g., 
 
 ```
-./build/SelfOrganisingMaps configs/gcal.json logdir 1 1 0
+./build/SelfOrganisingMaps configs/gcal.json logdir 1 1 1
 ```
 
 The final 3 numbers are
