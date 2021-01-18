@@ -42,8 +42,8 @@
 	"polyOrder" : 4,
 	"gaussBlur" : 0,
 	"saveplots" : false,
-	"patternSampleRows" : 100,
-	"patternSampleCols" : 100,
+	"patternSampleRows" : 90,
+	"patternSampleCols" : 90,
 	"freq" : [14.0,16.0,18.0,20.0,22.0,24.0]
 }
 
