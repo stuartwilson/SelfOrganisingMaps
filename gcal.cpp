@@ -54,8 +54,8 @@ int main(int argc, char **argv){
         case(0):{ // Gaussian patterns
         } break;
         case(1):{   // preload patterns
-            int ncols = conf.getUInt("cameraCols", 100);
-            int nrows = conf.getUInt("cameraRows", 100);
+            int ncols = conf.getUInt("patternSampleCols", 100);
+            int nrows = conf.getUInt("patternSampleRows", 100);
             Net.HCM.initProjection(ncols,nrows,0.01,20.);
             std::string filename = conf.getString ("patterns", "configs/testPatterns.h5");
             Net.HCM.preloadPatterns(filename);
@@ -139,7 +139,7 @@ int main(int argc, char **argv){
             std::chrono::steady_clock::time_point lastrender = std::chrono::steady_clock::now();
 
             std::vector<unsigned int> grids1(5);
-            std::vector<unsigned int> grids2(4);
+            std::vector<unsigned int> grids2(5);
 
             morph::Scale<FLT> zscale; zscale.setParams (0.0f, 0.0f);
             morph::Scale<FLT> cscale; cscale.do_autoscale = true;
@@ -158,7 +158,7 @@ int main(int argc, char **argv){
             std::vector<float> graphY3(2,0); graphY3[1] = 1.0;
             float wid = 0.7;
             float hei = 0.7;
-            morph::GraphVisual<float>* gv = new morph::GraphVisual<float> (v1.shaderprog, v1.tshaderprog, morph::Vector<float>{grid2offx+1.1f-wid*0.5f,0.0f-hei*0.5f,0.0f});
+            morph::GraphVisual<float>* gv = new morph::GraphVisual<float> (v1.shaderprog, v1.tshaderprog, morph::Vector<float>{grid2offx+1.1f-wid*0.5f,1.0f-hei*0.5f,0.0f});
 
 
             morph::ColourMap<FLT> hsv(morph::ColourMapType::Fixed);
@@ -166,6 +166,8 @@ int main(int argc, char **argv){
             HexGridVisualManual<FLT> prefSelMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
 
             HexGridVisualManual<FLT> prefMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,1.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+
+            morph::HexGridVisual<FLT> SFMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+1.1f,-1.0f,0.0f},&(analysis.sfPref),zscale,cscale,morph::ColourMapType::Jet);
 
 
 
@@ -202,7 +204,7 @@ int main(int argc, char **argv){
             }
 
 
-            {   // Cortex map preference and selectivity display
+            {   // Cortex map orientation preference and selectivity display
 
                 grids2[0] = v1.addVisualModel (&prefSelMapPlot);
 
@@ -210,14 +212,14 @@ int main(int argc, char **argv){
                 morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             }
 
-            {   // Cortex map preference display
+            {   // Cortex map orientation preference display
                 grids2[2] = v1.addVisualModel (&prefMapPlot);
 
                 v1.getVisualModel (grids2[2])->addLabel ("OR pref", {-0.05f, txtoff, 0.0f},
                 morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             }
 
-            {   // contours
+            {   // orientation zero-crossing contours
                 morph::Scale<FLT> ctr_cscale; ctr_cscale.setParams (1.0f, 0.0f);
                 morph::Scale<FLT> null_zscale; null_zscale.setParams (0.0f, 0.0f);
                 grids2[3] = v1.addVisualModel (new morph::HexGridVisual<FLT>
@@ -226,6 +228,14 @@ int main(int argc, char **argv){
                 v1.getVisualModel (grids2[3])->addLabel ("0-contour", {-0.05f, txtoff, 0.0f},
                 morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             }
+
+            {   // Cortex map spatial frequency preference display
+                grids2[4] = v1.addVisualModel (&SFMapPlot);
+
+                v1.getVisualModel (grids2[4])->addLabel ("SF pref", {-0.05f, txtoff, 0.0f},
+                morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            }
+
 
 
             {   // Graph of frequency estimate
@@ -442,6 +452,13 @@ int main(int argc, char **argv){
                     gv->update (graphX, graphY, 0);
                     gv->update (graphX2, graphY2, 1);
                     gv->update (graphX3, graphY3, 2);
+                }
+
+                { // Spatial Frequency Preference map
+
+                    VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[4]);
+                    avm->updateData (&analysis.sfPref);
+                    avm->clearAutoscaleColour();
                 }
 
                 if(saveplots){

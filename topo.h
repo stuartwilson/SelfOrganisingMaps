@@ -613,6 +613,8 @@ public:
     Flt strength;
     std::vector<cv::Point> mask;
     unsigned int stepsize;
+    int patternsWid;
+    int nPatterns;
 
     std::vector<std::vector<Flt> > PreLoadedPatterns;
 
@@ -702,6 +704,7 @@ public:
         step();
     }
 
+    /*
     void preloadPatterns(std::string filename){
         std::stringstream fname; fname << filename;
         morph::HdfData data(fname.str(),1);
@@ -717,13 +720,55 @@ public:
             }
         }
     }
+    */
 
+    void preloadPatterns(std::string filename){
+        std::stringstream fname; fname << filename;
+        morph::HdfData data(fname.str(),1);
+        std::vector<Flt> tmp;
+        data.read_contained_vals ("P", tmp);
+        std::vector<int> dims;
+        data.read_contained_vals ("dims", dims);
+        nPatterns = dims[2];
+        patternsWid = dims[0]; // could/should check/deal with non-square images but not doing so now
+        PreLoadedPatterns.resize(nPatterns,std::vector<Flt>(patternsWid*patternsWid,0.));
+        int k=0;
+        for(int i=0;i<nPatterns;i++){
+            for(int j=0;j<patternsWid*patternsWid;j++){
+                PreLoadedPatterns[i][j] = tmp[k];
+                k++;
+            }
+        }
+    }
+
+    /*
     void stepPreloaded(int p){
+
         for(int i=0;i<C.n;i++){
             C.vsquare[i].X = PreLoadedPatterns[p][i];
         }
         step();
     }
+    */
+
+    void stepPreloaded(int p){
+
+        // Jitter if the sample width is less than the image width
+        int offx = floor(morph::Tools::randDouble()*(patternsWid-C.nx));
+        int offy = floor(morph::Tools::randDouble()*(patternsWid-C.ny));
+
+        int k=0;
+        for(int i=0;i<C.nx;i++){
+            for(int j=0;j<C.ny;j++){
+                int ind = (patternsWid + offy + i)*patternsWid + offx + j;
+                C.vsquare[k].X = PreLoadedPatterns[p][ind];
+                k++;
+            }
+        }
+        step();
+    }
+
+
 
     void stepPreloaded(void){
         int p = floor(morph::Tools::randDouble()*PreLoadedPatterns.size());

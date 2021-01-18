@@ -10,7 +10,7 @@ class orientationPinwheelDensity {
     std::vector<std::vector<FLT> > orResponseSampled;
 
     float ROIwid, ROIpinwheelCount, IsoORfrequency, IsoORcolumnSpacing, sampleRange, gratingWidth, amplitude;
-    std::vector<FLT> orPref, orSel, intersects, binVals, histogram;
+    std::vector<FLT> orPref, orSel, intersects, binVals, histogram, sfPref;
     std::vector<std::vector<FLT> > IsoORcontours;
     int nBins, nPhase, polyOrder, sampwid, gaussBlur, nOr;
     float pinwheelDensity;
@@ -47,6 +47,7 @@ class orientationPinwheelDensity {
         CHM.initProjection(sampwid,sampwid,ROIwid,ROIwid,Out->Xptr,Out->hg, 0.05, 0.001);
         orPref.resize(Out->nhex,0.);
         orSel.resize(Out->nhex,0.);
+        sfPref.resize(Out->nhex,0.);
         IsoORcontours.resize(2,std::vector<FLT>(Out->nhex,0.));
         binVals.resize(nBins,0.);
         histogram.resize(nBins,0.);
@@ -71,21 +72,30 @@ class orientationPinwheelDensity {
         int nFreq = Freq.size();
 
 
+
+
         for(unsigned int i=0;i<nOr;i++){
             theta[i] = i*M_PI/(double)nOr;
         }
+
+        std::vector<float> maxOverAll(n,-1e9);
         for(unsigned int i=0;i<nOr;i++){
             std::fill(maxPhase.begin(),maxPhase.end(),-1e9);
             for(unsigned int j=0;j<nPhase;j++){
                 double phase = j*phaseInc;
                 for(unsigned int k=0;k<nFreq;k++){
-                    In->Grating(theta[i],phase,Freq[k]/Net->spatialScale,1.0);
+                    float sf = Freq[k]/Net->spatialScale;
+                    In->Grating(theta[i],phase,sf,1.0);
                     Net->stepHidden();
                     Out->zero_X();
                     Out->step(aff);
                     for(int l=0;l<n;l++){
                         if(maxPhase[l]<Out->X[l]){
                             maxPhase[l] = Out->X[l];
+                        }
+                        if(maxOverAll[l]<Out->X[l]){
+                            maxOverAll[l] = Out->X[l];
+                            sfPref[l] = sf;
                         }
                     }
                 }
@@ -104,6 +114,19 @@ class orientationPinwheelDensity {
             }
             orResponseSampled[i] = r;
         }
+
+        float maxSF = -1e9;
+        float minSF = +1e9;
+        for(int l=0;l<n;l++){
+            if(sfPref[l]<minSF){
+                minSF = sfPref[l];
+            }
+            if(sfPref[l]>maxSF){
+                maxSF = sfPref[l];
+            }
+        }
+        std::cout<<"Min SF = "<<minSF<<", Max SF = "<<maxSF<<std::endl;
+
     }
 
     void updateORpreferences(void){
