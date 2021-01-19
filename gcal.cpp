@@ -163,9 +163,9 @@ int main(int argc, char **argv){
 
             morph::ColourMap<FLT> hsv(morph::ColourMapType::Fixed);
 
-            HexGridVisualManual<FLT> prefSelMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+            morph::HexGridVisualManual<FLT> prefSelMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
 
-            HexGridVisualManual<FLT> prefMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,1.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+            morph::HexGridVisualManual<FLT> prefMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,1.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
 
             morph::HexGridVisual<FLT> SFMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+1.1f,-1.0f,0.0f},&(analysis.sfPref),zscale,cscale,morph::ColourMapType::Jet);
 
