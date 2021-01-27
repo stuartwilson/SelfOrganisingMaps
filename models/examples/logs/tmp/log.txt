@@ -1,2 +1,0 @@
-Hello.
-Weights saved at time: 100
