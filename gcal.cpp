@@ -123,7 +123,10 @@ int main(int argc, char **argv){
 
         case(1): { // Plotting
 
+            std::chrono::steady_clock::time_point lastrender = std::chrono::steady_clock::now();
+
             // SETUP PLOTS
+
             const unsigned int plotevery = conf.getUInt ("plotevery", 1);
             const bool saveplots = conf.getBool ("saveplots", false);
             unsigned int framecount = 0;
@@ -136,147 +139,120 @@ int main(int argc, char **argv){
             v1.scenetrans_stepsize = 0.1;
             v1.fov = 50;
 
-            std::chrono::steady_clock::time_point lastrender = std::chrono::steady_clock::now();
-
+            // plotting grids
             std::vector<unsigned int> grids1(5);
             std::vector<unsigned int> grids2(5);
-
-            morph::Scale<FLT> zscale; zscale.setParams (0.0f, 0.0f);
-            morph::Scale<FLT> cscale; cscale.do_autoscale = true;
-
             float grid1offx = -1.0f;
             float grid2offx = +1.0f;
             float txtoff = -0.55f;
 
-            // Map/metric graph structures
+            // ADD PLOTS TO SCENE
+
+            // general purpose objects
+            morph::Scale<FLT> zscale; zscale.setParams (0.0f, 0.0f);
+            morph::Scale<FLT> cscale; cscale.do_autoscale = true;
+            morph::ColourMap<FLT> hsv(morph::ColourMapType::Fixed);
             std::vector<FLT> zeromap (Net.CX.nhex, static_cast<FLT>(0.0));
+
+            // Retina display
+            morph::HexGridVisual<FLT> hgvRetina (v1.shaderprog,v1.tshaderprog, Net.IN.hg,std::array<float,3>{grid1offx+0.0f,-0.9f,0.0f}, &(Net.IN.X),zscale,cscale,morph::ColourMapType::Inferno);
+            grids1[0] = v1.addVisualModel (&hgvRetina);
+            v1.getVisualModel (grids1[0])->addLabel ("retina", {-0.15f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvRetina.hexVisMode = morph::HexVisMode::Triangles;
+
+            // LGN ON display
+            morph::HexGridVisual<FLT> hgvLGNon (v1.shaderprog,v1.tshaderprog, Net.LGN_ON.hg,std::array<float,3>{grid1offx-0.6f,0.0f,0.0f}, &(Net.LGN_ON.X),zscale,cscale,morph::ColourMapType::Inferno);
+            grids1[1] = v1.addVisualModel (&hgvLGNon);
+            v1.getVisualModel (grids1[1])->addLabel ("LGN on", {-0.2f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvLGNon.hexVisMode = morph::HexVisMode::Triangles;
+
+            // LGN OFF display
+            morph::HexGridVisual<FLT> hgvLGNoff (v1.shaderprog,v1.tshaderprog, Net.LGN_OFF.hg,std::array<float,3>{grid1offx+0.6f,0.0f,0.0f}, &(Net.LGN_OFF.X),zscale,cscale,morph::ColourMapType::Inferno);
+                grids1[2] = v1.addVisualModel (&hgvLGNoff);
+            v1.getVisualModel (grids1[2])->addLabel ("LGN off", {-0.2f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvLGNoff.hexVisMode = morph::HexVisMode::Triangles;
+
+            // Cortex display
+            morph::HexGridVisual<FLT> hgvV1 (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid1offx+0.0f,0.9f,0.0f}, &(Net.CX.X),zscale,cscale,morph::ColourMapType::Inferno);
+            grids1[3] = v1.addVisualModel (&hgvV1);
+            v1.getVisualModel (grids1[3])->addLabel ("V1", {-0.05f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvV1.hexVisMode = morph::HexVisMode::Triangles;
+
+            // Cortex map orientation preference and selectivity display
+            morph::HexGridVisualManual<FLT> hgvORPrefSel(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+            grids2[0] = v1.addVisualModel (&hgvORPrefSel);
+            v1.getVisualModel (grids2[0])->addLabel ("OR pref*sel", {-0.05f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvORPrefSel.hexVisMode = morph::HexVisMode::Triangles;
+
+            // Cortex map orientation preference display
+            morph::HexGridVisualManual<FLT> hgvORpref(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,1.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+            grids2[2] = v1.addVisualModel (&hgvORpref);
+            v1.getVisualModel (grids2[2])->addLabel ("OR pref", {-0.05f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvORpref.hexVisMode = morph::HexVisMode::Triangles;
+
+            // orientation zero-crossing contours
+            morph::Scale<FLT> ctr_cscale; ctr_cscale.setParams (1.0f, 0.0f);
+            morph::Scale<FLT> null_zscale; null_zscale.setParams (0.0f, 0.0f);
+            morph::HexGridVisual<FLT> hgvContours (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid2offx+0.0f,-1.0f,0.0f}, &(zeromap),null_zscale,ctr_cscale,morph::ColourMapType::RainbowZeroWhite);
+            grids2[3] = v1.addVisualModel (&hgvContours);
+            v1.getVisualModel (grids2[3])->addLabel ("0-contour", {-0.05f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvContours.hexVisMode = morph::HexVisMode::Triangles;
+
+            // Cortex map spatial frequency preference display
+            morph::HexGridVisual<FLT> hgvSFpref(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+1.1f,-1.0f,0.0f},&(analysis.sfPref),zscale,cscale,morph::ColourMapType::Jet);
+            grids2[4] = v1.addVisualModel (&hgvSFpref);
+            v1.getVisualModel (grids2[4])->addLabel ("SF pref", {-0.05f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvSFpref.hexVisMode = morph::HexVisMode::Triangles;
+
+            // Graph of frequency estimate
             std::vector<float> graphX(1,0);
             std::vector<float> graphY(1,0);
             std::vector<float> graphX2(1,0);
             std::vector<float> graphY2(1,0);
             std::vector<float> graphX3(2,0);
-            std::vector<float> graphY3(2,0); graphY3[1] = 1.0;
+            std::vector<float> graphY3(2,0);
+            graphY3[1] = 1.0;
             float wid = 0.7;
             float hei = 0.7;
-            morph::GraphVisual<float>* gv = new morph::GraphVisual<float> (v1.shaderprog, v1.tshaderprog, morph::Vector<float>{grid2offx+1.1f-wid*0.5f,1.0f-hei*0.5f,0.0f});
-
-
-            morph::ColourMap<FLT> hsv(morph::ColourMapType::Fixed);
-
-            morph::HexGridVisualManual<FLT> prefSelMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
-
-            morph::HexGridVisualManual<FLT> prefMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,1.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
-
-            morph::HexGridVisual<FLT> SFMapPlot(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+1.1f,-1.0f,0.0f},&(analysis.sfPref),zscale,cscale,morph::ColourMapType::Jet);
-
-
-
-            // ADD PLOTS TO SCENE
-
-            {   //afferent display
-                grids1[0] = v1.addVisualModel (new morph::HexGridVisual<FLT>
-                                            (v1.shaderprog,v1.tshaderprog, Net.IN.hg,std::array<float,3>{grid1offx+0.0f,-0.9f,0.0f}, &(Net.IN.X),zscale,cscale,morph::ColourMapType::Inferno));
-                v1.getVisualModel (grids1[0])->addLabel ("retina", {-0.15f, txtoff, 0.0f},
-                morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            }
-
-            {   // LGN ON display
-                grids1[1] = v1.addVisualModel (new morph::HexGridVisual<FLT>
-                                            (v1.shaderprog,v1.tshaderprog, Net.LGN_ON.hg,std::array<float,3>{grid1offx-0.6f,0.0f,0.0f}, &(Net.LGN_ON.X),zscale,cscale,morph::ColourMapType::Inferno));
-
-                v1.getVisualModel (grids1[1])->addLabel ("LGN on", {-0.2f, txtoff, 0.0f},
-                morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            }
-
-            {   // LGN OFF display
-                grids1[2] = v1.addVisualModel (new morph::HexGridVisual<FLT>
-                                            (v1.shaderprog,v1.tshaderprog, Net.LGN_OFF.hg,std::array<float,3>{grid1offx+0.6f,0.0f,0.0f}, &(Net.LGN_OFF.X),zscale,cscale,morph::ColourMapType::Inferno));
-
-                v1.getVisualModel (grids1[2])->addLabel ("LGN off", {-0.2f, txtoff, 0.0f},
-                morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            }
-
-            {   // Cortex display
-                grids1[3] = v1.addVisualModel (new morph::HexGridVisual<FLT>
-                                            (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid1offx+0.0f,0.9f,0.0f}, &(Net.CX.X),zscale,cscale,morph::ColourMapType::Inferno));
-                v1.getVisualModel (grids1[3])->addLabel ("V1", {-0.05f, txtoff, 0.0f},
-                morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            }
-
-
-            {   // Cortex map orientation preference and selectivity display
-
-                grids2[0] = v1.addVisualModel (&prefSelMapPlot);
-
-                v1.getVisualModel (grids2[0])->addLabel ("OR pref*sel", {-0.05f, txtoff, 0.0f},
-                morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            }
-
-            {   // Cortex map orientation preference display
-                grids2[2] = v1.addVisualModel (&prefMapPlot);
-
-                v1.getVisualModel (grids2[2])->addLabel ("OR pref", {-0.05f, txtoff, 0.0f},
-                morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            }
-
-            {   // orientation zero-crossing contours
-                morph::Scale<FLT> ctr_cscale; ctr_cscale.setParams (1.0f, 0.0f);
-                morph::Scale<FLT> null_zscale; null_zscale.setParams (0.0f, 0.0f);
-                grids2[3] = v1.addVisualModel (new morph::HexGridVisual<FLT>
-                                            (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid2offx+0.0f,-1.0f,0.0f}, &(zeromap),null_zscale,ctr_cscale,morph::ColourMapType::RainbowZeroWhite));
-
-                v1.getVisualModel (grids2[3])->addLabel ("0-contour", {-0.05f, txtoff, 0.0f},
-                morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            }
-
-            {   // Cortex map spatial frequency preference display
-                grids2[4] = v1.addVisualModel (&SFMapPlot);
-
-                v1.getVisualModel (grids2[4])->addLabel ("SF pref", {-0.05f, txtoff, 0.0f},
-                morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            }
-
-
-
-            {   // Graph of frequency estimate
-
-                morph::DatasetStyle ds;
-                ds.linewidth = 0.00;
-                ds.linecolour = {0.0, 0.0, 0.0};
-                ds.markerstyle = morph::markerstyle::circle;
-                ds.markersize = 0.02;
-                ds.markercolour = {0.0, 0.0, 0.0};
-                ds.markergap = 0.0;
-
-                gv->xlabel="frequency (cycles/ROI-width)";
-                gv->ylabel="FFT magnitude";
-                gv->setsize(wid,hei);
-
-                gv->setlimits (0,(float)analysis.sampwid*0.5,0,1.0); // plot up to nyquist (pixels / 2)
-                gv->setdata (graphX, graphY, ds);
-
-                morph::DatasetStyle ds2;
-                ds2.markerstyle = morph::markerstyle::circle;
-                ds2.markersize = 0.0;
-                ds2.markercolour = {0.0, 0.0, 0.0};
-                ds2.markergap = 0.0;
-                ds2.linewidth = 0.01;
-                ds2.linecolour = {1.0, 0.0, 0.0};
-                gv->setdata (graphX2, graphY2, ds2);
-
-                morph::DatasetStyle ds3;
-                ds3.markerstyle = morph::markerstyle::circle;
-                ds3.markersize = 0.0;
-                ds3.markercolour = {0.0, 0.0, 0.0};
-                ds3.markergap = 0.0;
-                ds3.linewidth = 0.01;
-                ds3.linecolour = {0.0, 0.0, 1.0};
-                gv->setdata (graphX3, graphY3, ds3);
-                gv->finalize();
-
-                grids2[1] = v1.addVisualModel (static_cast<morph::VisualModel*>(gv));
-
-            }
+            morph::GraphVisual<float>* gvPinDensity = new morph::GraphVisual<float> (v1.shaderprog, v1.tshaderprog, morph::Vector<float>{grid2offx+1.1f-wid*0.5f,1.0f-hei*0.5f,0.0f});
+            morph::DatasetStyle ds;
+            ds.linewidth = 0.00;
+            ds.linecolour = {0.0, 0.0, 0.0};
+            ds.markerstyle = morph::markerstyle::circle;
+            ds.markersize = 0.02;
+            ds.markercolour = {0.0, 0.0, 0.0};
+            ds.markergap = 0.0;
+            gvPinDensity->xlabel="frequency (cycles/ROI-width)";
+            gvPinDensity->ylabel="FFT magnitude";
+            gvPinDensity->setsize(wid,hei);
+            gvPinDensity->setlimits (0,(float)analysis.sampwid*0.5,0,1.0); // plot up to nyquist (pixels / 2)
+            gvPinDensity->setdata (graphX, graphY, ds);
+            morph::DatasetStyle ds2;
+            ds2.markerstyle = morph::markerstyle::circle;
+            ds2.markersize = 0.0;
+            ds2.markercolour = {0.0, 0.0, 0.0};
+            ds2.markergap = 0.0;
+            ds2.linewidth = 0.01;
+            ds2.linecolour = {1.0, 0.0, 0.0};
+            gvPinDensity->setdata (graphX2, graphY2, ds2);
+            morph::DatasetStyle ds3;
+            ds3.markerstyle = morph::markerstyle::circle;
+            ds3.markersize = 0.0;
+            ds3.markercolour = {0.0, 0.0, 0.0};
+            ds3.markergap = 0.0;
+            ds3.linewidth = 0.01;
+            ds3.linecolour = {0.0, 0.0, 1.0};
+            gvPinDensity->setdata (graphX3, graphY3, ds3);
+            gvPinDensity->finalize();
+            grids2[1] = v1.addVisualModel (static_cast<morph::VisualModel*>(gvPinDensity));
 
             // RUN THE MODEL
             for(int b=0;b<nBlocks;b++){
@@ -370,7 +346,6 @@ int main(int argc, char **argv){
 
                 { // Map pref display
 
-
                     float maxSel = -1e9;
                     float minSel = +1e9;
                     for(int i=0;i<Net.CX.nhex;i++){
@@ -384,15 +359,15 @@ int main(int argc, char **argv){
 
                         float pref = analysis.orPref[i]*overPi;
                         std::array<float, 3> rgb1 = hsv.hsv2rgb(pref,1.0,1.0);
-                        prefMapPlot.R[i] = rgb1[0];
-                        prefMapPlot.G[i] = rgb1[1];
-                        prefMapPlot.B[i] = rgb1[2];
+                        hgvORpref.R[i] = rgb1[0];
+                        hgvORpref.G[i] = rgb1[1];
+                        hgvORpref.B[i] = rgb1[2];
 
                         float sel = (analysis.orSel[i]-minSel)*rangeSel;
                         std::array<float, 3> rgb2 = hsv.hsv2rgb(pref,1.0,sel);
-                        prefSelMapPlot.R[i] = rgb2[0];
-                        prefSelMapPlot.G[i] = rgb2[1];
-                        prefSelMapPlot.B[i] = rgb2[2];
+                        hgvORPrefSel.R[i] = rgb2[0];
+                        hgvORPrefSel.G[i] = rgb2[1];
+                        hgvORPrefSel.B[i] = rgb2[2];
                     }
 
                 }
@@ -449,9 +424,9 @@ int main(int argc, char **argv){
                     graphX3[0] = analysis.IsoORfrequency;
                     graphX3[1] = analysis.IsoORfrequency;
 
-                    gv->update (graphX, graphY, 0);
-                    gv->update (graphX2, graphY2, 1);
-                    gv->update (graphX3, graphY3, 2);
+                    gvPinDensity->update (graphX, graphY, 0);
+                    gvPinDensity->update (graphX2, graphY2, 1);
+                    gvPinDensity->update (graphX3, graphY3, 2);
                 }
 
                 { // Spatial Frequency Preference map
