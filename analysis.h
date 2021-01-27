@@ -1,6 +1,8 @@
 //#include "topo.h"
 //#include "general.h"
 
+#include <morph/ShapeAnalysis.h>
+
 class orientationPinwheelDensity {
 
     public:
@@ -8,6 +10,7 @@ class orientationPinwheelDensity {
     CartHexSampler<FLT> CHM;
     std::vector<std::vector<FLT> > orResponse;
     std::vector<std::vector<FLT> > orResponseSampled;
+    morph::ShapeAnalysis<FLT> shapeAn;
 
     float ROIwid, ROIpinwheelCount, IsoORfrequency, IsoORcolumnSpacing, sampleRange, gratingWidth, amplitude;
     std::vector<FLT> orPref, orSel, intersects, binVals, histogram, sfPref;
@@ -168,8 +171,9 @@ class orientationPinwheelDensity {
         }
 
         // Get zero-crossings of the two response difference maps
-        IsoORcontours[0] = get_contour_map(Out->hg, df1, 0.0);
-        IsoORcontours[1] = get_contour_map(Out->hg, df2, 0.0);
+
+        IsoORcontours[0] = shapeAn.get_contour_map_flag_nonorm(Out->hg, df1, 0.0, 1);
+        IsoORcontours[1] = shapeAn.get_contour_map_flag_nonorm(Out->hg, df2, 0.0, 1);
 
     }
 
@@ -185,8 +189,8 @@ class orientationPinwheelDensity {
         }
 
         // Get zero-crossings of the two response difference maps
-        IsoORcontours[0] = get_contour_map(Out->hg, real, 0.0);
-        IsoORcontours[1] = get_contour_map(Out->hg, imag, 0.0);
+        IsoORcontours[0] = shapeAn.get_contour_map_flag_nonorm(Out->hg, real, 0.0, 1);
+        IsoORcontours[1] = shapeAn.get_contour_map_flag_nonorm(Out->hg, imag, 0.0, 1);
 
     }
 
