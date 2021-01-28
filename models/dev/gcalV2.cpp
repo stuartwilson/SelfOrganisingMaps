@@ -1,5 +1,5 @@
-#include "gcal.h"
-#include "analysis.h"
+#include "../../topo/gcal.h"
+#include "../../topo/analysis.h"
 
 #include <morph/HdfData.h>
 #include <morph/Config.h>
@@ -16,6 +16,92 @@ typedef morph::VisualDataModel<FLT>* VdmPtr;
 using morph::Config;
 using morph::Tools;
 using morph::ColourMap;
+
+//
+class gcalV2 : public gcal {
+    public:
+    CortexSOM<FLT> CX2;
+    float v1v2strength, v2exstrength, v2instrength;
+    gcalV2(morph::Config conf) : gcal(conf){
+        v1v2strength = conf.getFloat ("v1v2strength", afferStrength);
+        v2exstrength = conf.getFloat ("v2exstrength", excitStrength);
+        v2instrength = conf.getFloat ("v2instrength", inhibStrength);
+
+        // CORTEX SHEET
+        CX2.beta = beta;
+        CX2.lambda = lambda;
+        CX2.mu = mu;
+        CX2.thetaInit = thetaInit;
+        CX2.svgpath = conf.getString ("CX_svgpath", "boundaries/trialmod.svg");
+        CX2.init();
+        CX2.allocate();
+
+        CX2.addProjection(CX.Xptr, CX.hg, afferRadius, v1v2strength, afferAlpha, afferSigma, true);
+        CX2.addProjection(CX2.Xptr, CX2.hg, excitRadius, v2exstrength, excitAlpha, excitSigma, true);
+        CX2.addProjection(CX2.Xptr, CX2.hg, inhibRadius, v2instrength, inhibAlpha, inhibSigma, true);
+        CX2.renormalize();
+    }
+
+    void stepHidden(bool learning){
+        LGN_ON.step();
+        LGN_OFF.step();
+        stepCortex(learning);
+    }
+
+    void stepCortex2(bool learning){
+        CX2.zero_X();
+        for(unsigned int j=0;j<settle;j++){
+            CX2.step();
+        }
+        if(learning){
+            for(unsigned int p=0;p<CX2.Projections.size();p++){ CX2.Projections[p].learn(); }
+            CX2.renormalize();
+            if (homeostasis){ CX2.homeostasis(); }
+        }
+    }
+
+    void save(std::string filename){
+        std::stringstream fname; fname << filename;
+        morph::HdfData data(fname.str());
+        std::vector<int> timetmp(1,time);
+        data.add_contained_vals ("time", timetmp);
+        for(unsigned int p=0;p<CX.Projections.size();p++){
+            std::vector<FLT> proj = CX.Projections[p].getWeights();
+            std::stringstream ss; ss<<"proj_1_"<<p;
+            data.add_contained_vals (ss.str().c_str(), proj);
+        }
+        for(unsigned int p=0;p<CX2.Projections.size();p++){
+            std::vector<FLT> proj = CX2.Projections[p].getWeights();
+            std::stringstream ss; ss<<"proj_2_"<<p;
+            data.add_contained_vals (ss.str().c_str(), proj);
+        }
+    }
+
+    void load(std::string filename){
+        std::stringstream fname; fname << filename;
+        morph::HdfData data(fname.str(),1);
+        std::vector<int> timetmp;
+        data.read_contained_vals ("time", timetmp);
+        time = timetmp[0];
+        for(unsigned int p=0;p<CX.Projections.size();p++){
+            std::vector<FLT> proj;
+            std::stringstream ss; ss<<"proj_1_"<<p;
+            data.read_contained_vals (ss.str().c_str(), proj);
+            CX.Projections[p].setWeights(proj);
+        }
+        for(unsigned int p=0;p<CX2.Projections.size();p++){
+            std::vector<FLT> proj;
+            std::stringstream ss; ss<<"proj_2_"<<p;
+            data.read_contained_vals (ss.str().c_str(), proj);
+            CX.Projections[p].setWeights(proj);
+        }
+        std::cout<<"Loaded weights and modified time to " << time << std::endl;
+    }
+
+
+};
+
+//
 
 int main(int argc, char **argv){
 
@@ -37,16 +123,19 @@ int main(int argc, char **argv){
 
     unsigned int nBlocks = conf.getUInt ("blocks", 100);
     unsigned int steps = conf.getUInt("steps", 100);
+    bool showFFT = conf.getBool("showFFT", false);
+
 
     // Creates the network
-    gcal Net(conf);
+    gcalV2 Net(conf);
 
     // Creates the analyser object
     orientationPinwheelDensity analysis(&Net, &Net.IN, &Net.CX);
+    orientationPinwheelDensity analysis2(&Net, &Net.IN, &Net.CX2);
 
     // storage vectors
-    std::vector<float> pincounts;
-    std::vector<float> frequencies;
+    std::vector<float> V1pincounts, V2pincounts;
+    std::vector<float> V1frequencies, V2frequencies;
     std::vector<float> analysistimes;
 
     // Input specific setup
@@ -86,38 +175,56 @@ int main(int argc, char **argv){
 
                 for(unsigned int i=0;i<steps;i++){
                     Net.stepAfferent(INTYPE);
-                    Net.stepCortex();
+                    Net.stepHidden(true);
+                    Net.stepCortex2(true);
                 }
 
-                // DO ORIENTATION MAP ANALYSIS
+                std::cout<<"steps: "<<Net.time<<std::endl;
+
+                // DO ORIENTATION MAP ANALYSIS (V1)
                 analysis.updateORresponses();
                 analysis.updateORpreferences();
                 analysis.updateIsoORcontoursPrefs();
                 analysis.updateROIpinwheelCount();
-                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate();
+                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate(showFFT);
                 analysis.updatePinwheelDensity();
-
-                std::cout<<"steps: "<<b*steps<<std::endl;
-                analysis.printPinwheelDensity();
+                analysis.printMetricInfo();
 
                 // SAVE METRIC INFO
-                pincounts.push_back(analysis.ROIpinwheelCount);
-                frequencies.push_back(analysis.IsoORfrequency);
+                V1pincounts.push_back(analysis.ROIpinwheelCount);
+                V1frequencies.push_back(analysis.IsoORfrequency);
+
+                // DO ORIENTATION MAP ANALYSIS (V2)
+                analysis2.updateORresponses();
+                analysis2.updateORpreferences();
+                analysis2.updateIsoORcontoursPrefs();
+                analysis2.updateROIpinwheelCount();
+                std::vector<float> fitCoeffs2 = analysis2.updateIsoORfrequencyEstimate(showFFT);
+                analysis2.updatePinwheelDensity();
+                analysis2.printMetricInfo();
+
+                // SAVE METRIC INFO
+                V2pincounts.push_back(analysis2.ROIpinwheelCount);
+                V2frequencies.push_back(analysis2.IsoORfrequency);
+
                 analysistimes.push_back(Net.time);
 
                 std::stringstream fname;
                 fname << logpath << "/measures.h5";
                 morph::HdfData data(fname.str());
                 std::stringstream path;
-                path.str(""); path.clear(); path << "/frequency";
-                data.add_contained_vals (path.str().c_str(), frequencies);
-                path.str(""); path.clear(); path << "/pincount";
-                data.add_contained_vals (path.str().c_str(), pincounts);
+                path.str(""); path.clear(); path << "/V1frequency";
+                data.add_contained_vals (path.str().c_str(), V1frequencies);
+                path.str(""); path.clear(); path << "/V1pincount";
+                data.add_contained_vals (path.str().c_str(), V1pincounts);
+                path.str(""); path.clear(); path << "/V2frequency";
+                data.add_contained_vals (path.str().c_str(), V2frequencies);
+                path.str(""); path.clear(); path << "/V2pincount";
+                data.add_contained_vals (path.str().c_str(), V2pincounts);
+
                 path.str(""); path.clear(); path << "/times";
                 data.add_contained_vals (path.str().c_str(), analysistimes);
 
-                std::stringstream ss; ss << logpath << "/weights_" << Net.time << ".h5";
-                Net.save(ss.str());
             }
         } break;
 
@@ -152,7 +259,6 @@ int main(int argc, char **argv){
             morph::Scale<FLT> zscale; zscale.setParams (0.0f, 0.0f);
             morph::Scale<FLT> cscale; cscale.do_autoscale = true;
             morph::ColourMap<FLT> hsv(morph::ColourMapType::Fixed);
-            std::vector<FLT> zeromap (Net.CX.nhex, static_cast<FLT>(0.0));
 
             // Retina display
             morph::HexGridVisual<FLT> hgvRetina (v1.shaderprog,v1.tshaderprog, Net.IN.hg,std::array<float,3>{grid1offx+0.0f,-0.9f,0.0f}, &(Net.IN.X),zscale,cscale,morph::ColourMapType::Inferno);
@@ -175,43 +281,36 @@ int main(int argc, char **argv){
             morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             hgvLGNoff.hexVisMode = morph::HexVisMode::Triangles;
 
-            // Cortex display
+            // Cortex V1 display
             morph::HexGridVisual<FLT> hgvV1 (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid1offx+0.0f,0.9f,0.0f}, &(Net.CX.X),zscale,cscale,morph::ColourMapType::Inferno);
             grids1[3] = v1.addVisualModel (&hgvV1);
             v1.getVisualModel (grids1[3])->addLabel ("V1", {-0.05f, txtoff, 0.0f},
             morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             hgvV1.hexVisMode = morph::HexVisMode::Triangles;
 
+            // Cortex V2 display
+            morph::HexGridVisual<FLT> hgvV2 (v1.shaderprog,v1.tshaderprog, Net.CX2.hg,std::array<float,3>{grid1offx+0.0f,1.8f,0.0f}, &(Net.CX2.X),zscale,cscale,morph::ColourMapType::Inferno);
+            grids1[4] = v1.addVisualModel (&hgvV2);
+            v1.getVisualModel (grids1[4])->addLabel ("V2", {-0.05f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvV2.hexVisMode = morph::HexVisMode::Triangles;
+
+
             // Cortex map orientation preference and selectivity display
             morph::HexGridVisualManual<FLT> hgvORPrefSel(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,0.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
             grids2[0] = v1.addVisualModel (&hgvORPrefSel);
-            v1.getVisualModel (grids2[0])->addLabel ("OR pref*sel", {-0.05f, txtoff, 0.0f},
+            v1.getVisualModel (grids2[0])->addLabel ("V1 OR pref*sel", {-0.05f, txtoff, 0.0f},
             morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             hgvORPrefSel.hexVisMode = morph::HexVisMode::Triangles;
 
-            // Cortex map orientation preference display
-            morph::HexGridVisualManual<FLT> hgvORpref(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+0.0f,1.0f,0.0f},&(analysis.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
-            grids2[2] = v1.addVisualModel (&hgvORpref);
-            v1.getVisualModel (grids2[2])->addLabel ("OR pref", {-0.05f, txtoff, 0.0f},
-            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            hgvORpref.hexVisMode = morph::HexVisMode::Triangles;
-
-            // orientation zero-crossing contours
-            morph::Scale<FLT> ctr_cscale; ctr_cscale.setParams (1.0f, 0.0f);
-            morph::Scale<FLT> null_zscale; null_zscale.setParams (0.0f, 0.0f);
-            morph::HexGridVisual<FLT> hgvContours (v1.shaderprog,v1.tshaderprog, Net.CX.hg,std::array<float,3>{grid2offx+0.0f,-1.0f,0.0f}, &(zeromap),null_zscale,ctr_cscale,morph::ColourMapType::RainbowZeroWhite);
-            grids2[3] = v1.addVisualModel (&hgvContours);
-            v1.getVisualModel (grids2[3])->addLabel ("0-contour", {-0.05f, txtoff, 0.0f},
-            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
-            hgvContours.hexVisMode = morph::HexVisMode::Triangles;
-
             // Cortex map spatial frequency preference display
-            morph::HexGridVisual<FLT> hgvSFpref(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+1.1f,-1.0f,0.0f},&(analysis.sfPref),zscale,cscale,morph::ColourMapType::Jet);
-            grids2[4] = v1.addVisualModel (&hgvSFpref);
-            v1.getVisualModel (grids2[4])->addLabel ("SF pref", {-0.05f, txtoff, 0.0f},
+            morph::HexGridVisual<FLT> hgvSFpref(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx,-1.0f,0.0f},&(analysis.sfPref),zscale,cscale,morph::ColourMapType::Jet);
+            grids2[1] = v1.addVisualModel (&hgvSFpref);
+            v1.getVisualModel (grids2[1])->addLabel ("V1 SF pref", {-0.05f, txtoff, 0.0f},
             morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
             hgvSFpref.hexVisMode = morph::HexVisMode::Triangles;
 
+            /*
             // Graph of frequency estimate
             std::vector<float> graphX(1,0);
             std::vector<float> graphY(1,0);
@@ -222,7 +321,7 @@ int main(int argc, char **argv){
             graphY3[1] = 1.0;
             float wid = 0.7;
             float hei = 0.7;
-            morph::GraphVisual<float>* gvPinDensity = new morph::GraphVisual<float> (v1.shaderprog, v1.tshaderprog, morph::Vector<float>{grid2offx+1.1f-wid*0.5f,1.0f-hei*0.5f,0.0f});
+            morph::GraphVisual<float>* gvPinDensity = new morph::GraphVisual<float> (v1.shaderprog, v1.tshaderprog, morph::Vector<float>{grid2offx-wid*0.5f,1.0f-hei*0.5f,0.0f});
             morph::DatasetStyle ds;
             ds.linewidth = 0.00;
             ds.linecolour = {0.0, 0.0, 0.0};
@@ -252,7 +351,23 @@ int main(int argc, char **argv){
             ds3.linecolour = {0.0, 0.0, 1.0};
             gvPinDensity->setdata (graphX3, graphY3, ds3);
             gvPinDensity->finalize();
-            grids2[1] = v1.addVisualModel (static_cast<morph::VisualModel*>(gvPinDensity));
+            grids2[2] = v1.addVisualModel (static_cast<morph::VisualModel*>(gvPinDensity));
+            */
+
+            // V2
+            // Cortex map orientation preference and selectivity display
+            morph::HexGridVisualManual<FLT> hgvORPrefSel2(v1.shaderprog,v1.tshaderprog, Net.CX2.hg,morph::Vector<float,3>{grid2offx+1.1f,0.0f,0.0f},&(analysis2.orPref),zscale,cscale,morph::ColourMapType::Rainbow);
+            grids2[3] = v1.addVisualModel (&hgvORPrefSel2);
+            v1.getVisualModel (grids2[3])->addLabel ("V2 OR pref*sel", {-0.05f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvORPrefSel2.hexVisMode = morph::HexVisMode::Triangles;
+
+            // Cortex map spatial frequency preference display
+            morph::HexGridVisual<FLT> hgvSFpref2(v1.shaderprog,v1.tshaderprog, Net.CX.hg,morph::Vector<float,3>{grid2offx+1.1f,-1.0f,0.0f},&(analysis2.sfPref),zscale,cscale,morph::ColourMapType::Jet);
+            grids2[4] = v1.addVisualModel (&hgvSFpref2);
+            v1.getVisualModel (grids2[4])->addLabel ("V2 SF pref", {-0.05f, txtoff, 0.0f},
+            morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
+            hgvSFpref2.hexVisMode = morph::HexVisMode::Triangles;
 
             // RUN THE MODEL
             for(int b=0;b<nBlocks;b++){
@@ -261,7 +376,8 @@ int main(int argc, char **argv){
                 for(unsigned int i=0;i<steps;i++){
 
                     Net.stepAfferent(INTYPE);
-                    Net.stepCortex();
+                    Net.stepHidden(true);
+                    Net.stepCortex2(true);
 
                     // UPDATE DISPLAYS
                     if(Net.time%plotevery==0){
@@ -275,8 +391,11 @@ int main(int argc, char **argv){
                         std::cout<<"LGN OFF -- ";
                         Net.LGN_OFF.printMinMax();
 
-                        std::cout<<"Cortex -- ";
+                        std::cout<<"Cortex V1 -- ";
                         Net.CX.printMinMax();
+
+                        std::cout<<"Cortex V2 -- ";
+                        Net.CX2.printMinMax();
 
                         std::cout<<std::endl;
 
@@ -298,9 +417,15 @@ int main(int argc, char **argv){
                             avm->clearAutoscaleColour();
                         }
 
-                        { // Cortex display
+                        { // Cortex V1 display
                             VdmPtr avm = (VdmPtr)v1.getVisualModel (grids1[3]);
                             avm->updateData (&(Net.CX.X));
+                            avm->clearAutoscaleColour();
+                        }
+
+                        { // Cortex V2 display
+                            VdmPtr avm = (VdmPtr)v1.getVisualModel (grids1[4]);
+                            avm->updateData (&(Net.CX2.X));
                             avm->clearAutoscaleColour();
                         }
 
@@ -315,37 +440,55 @@ int main(int argc, char **argv){
 
                 }
 
-                std::cout<<"steps: "<<b*steps<<std::endl;
+                std::cout<<"steps: "<<Net.time<<std::endl;
 
-                // DO ORIENTATION MAP ANALYSIS
+                // DO ORIENTATION MAP ANALYSIS (V1)
                 analysis.updateORresponses();
                 analysis.updateORpreferences();
                 analysis.updateIsoORcontoursPrefs();
                 analysis.updateROIpinwheelCount();
-                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate();
+                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate(showFFT);
                 analysis.updatePinwheelDensity();
                 analysis.printMetricInfo();
 
                 // SAVE METRIC INFO
-                pincounts.push_back(analysis.ROIpinwheelCount);
-                frequencies.push_back(analysis.IsoORfrequency);
+                V1pincounts.push_back(analysis.ROIpinwheelCount);
+                V1frequencies.push_back(analysis.IsoORfrequency);
+
+                // DO ORIENTATION MAP ANALYSIS (V2)
+                analysis2.updateORresponses();
+                analysis2.updateORpreferences();
+                analysis2.updateIsoORcontoursPrefs();
+                analysis2.updateROIpinwheelCount();
+                std::vector<float> fitCoeffs2 = analysis2.updateIsoORfrequencyEstimate(showFFT);
+                analysis2.updatePinwheelDensity();
+                analysis2.printMetricInfo();
+
+                // SAVE METRIC INFO
+                V2pincounts.push_back(analysis2.ROIpinwheelCount);
+                V2frequencies.push_back(analysis2.IsoORfrequency);
+
                 analysistimes.push_back(Net.time);
 
                 std::stringstream fname;
                 fname << logpath << "/measures.h5";
                 morph::HdfData data(fname.str());
                 std::stringstream path;
-                path.str(""); path.clear(); path << "/frequency";
-                data.add_contained_vals (path.str().c_str(), frequencies);
-                path.str(""); path.clear(); path << "/pincount";
-                data.add_contained_vals (path.str().c_str(), pincounts);
+                path.str(""); path.clear(); path << "/V1frequency";
+                data.add_contained_vals (path.str().c_str(), V1frequencies);
+                path.str(""); path.clear(); path << "/V1pincount";
+                data.add_contained_vals (path.str().c_str(), V1pincounts);
+                path.str(""); path.clear(); path << "/V2frequency";
+                data.add_contained_vals (path.str().c_str(), V2frequencies);
+                path.str(""); path.clear(); path << "/V2pincount";
+                data.add_contained_vals (path.str().c_str(), V2pincounts);
+
                 path.str(""); path.clear(); path << "/times";
                 data.add_contained_vals (path.str().c_str(), analysistimes);
 
                 // UPDATE MAP DISPLAYS
 
-                { // Map pref display
-
+                { // V1 Map pref display
                     float maxSel = -1e9;
                     float minSel = +1e9;
                     for(int i=0;i<Net.CX.nhex;i++){
@@ -356,55 +499,54 @@ int main(int argc, char **argv){
                     float overPi = 1./M_PI;
 
                     for(int i=0;i<Net.CX.nhex;i++){
-
                         float pref = analysis.orPref[i]*overPi;
-                        std::array<float, 3> rgb1 = hsv.hsv2rgb(pref,1.0,1.0);
-                        hgvORpref.R[i] = rgb1[0];
-                        hgvORpref.G[i] = rgb1[1];
-                        hgvORpref.B[i] = rgb1[2];
-
                         float sel = (analysis.orSel[i]-minSel)*rangeSel;
                         std::array<float, 3> rgb2 = hsv.hsv2rgb(pref,1.0,sel);
                         hgvORPrefSel.R[i] = rgb2[0];
                         hgvORPrefSel.G[i] = rgb2[1];
                         hgvORPrefSel.B[i] = rgb2[2];
                     }
-
-                }
-                {
-                    VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[0]);
-                    avm->updateData (&(analysis.orPref));
-                    avm->clearAutoscaleColour();
                 }
 
-                { // Map pref display
-                    VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[2]);
-                    avm->updateData (&(analysis.orSel));
-                    avm->clearAutoscaleColour();
-                }
-
-                { // Plot OR contours
-                    std::vector<FLT> ctrmap(Net.CX.nhex,0.);
-                    for(int k=0;k<ctrmap.size();k++){
-                        if(analysis.IsoORcontours[0][k]){ ctrmap[k]=0.25; }
-                        if(analysis.IsoORcontours[1][k]){ ctrmap[k]=0.75; }
-                        if(analysis.IsoORcontours[0][k] && analysis.IsoORcontours[1][k]){
-                            ctrmap[k]=1.0;
-                        }
+                 { // V2 Map pref display
+                    float maxSel = -1e9;
+                    float minSel = +1e9;
+                    for(int i=0;i<Net.CX2.nhex;i++){
+                        if(maxSel<analysis2.orSel[i]){ maxSel=analysis2.orSel[i];}
+                        if(minSel>analysis2.orSel[i]){ minSel=analysis2.orSel[i];}
                     }
-                    VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[3]);
-                    avm->updateData (&ctrmap);
+                    float rangeSel = 1./(maxSel-minSel);
+                    float overPi = 1./M_PI;
+
+                    for(int i=0;i<Net.CX2.nhex;i++){
+                        float pref = analysis2.orPref[i]*overPi;
+                        float sel = (analysis2.orSel[i]-minSel)*rangeSel;
+                        std::array<float, 3> rgb2 = hsv.hsv2rgb(pref,1.0,sel);
+                        hgvORPrefSel2.R[i] = rgb2[0];
+                        hgvORPrefSel2.G[i] = rgb2[1];
+                        hgvORPrefSel2.B[i] = rgb2[2];
+                    }
+                }
+
+
+                { // V1 OR preference map
+                    VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[0]);
+                    avm->updateData (&analysis.orPref);
                     avm->clearAutoscaleColour();
                 }
 
-                {   // Update histogram display
+                { // V1 Spatial Frequency Preference map
+                    VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[1]);
+                    avm->updateData (&analysis.sfPref);
+                    avm->clearAutoscaleColour();
+                }
 
+                /*
+                {   // Update histogram display
                     graphX = analysis.binVals;
                     graphY = analysis.histogram;
-
                     int nsamp = 1000;
                     float xmax = analysis.nBins*analysis.sampleRange;
-
                     arma::vec xfit(nsamp);
                     graphX2.resize(nsamp,0);
                     for(int i=0;i<nsamp;i++){
@@ -420,19 +562,25 @@ int main(int argc, char **argv){
                     for(int i=0;i<nsamp;i++){
                         graphY2[i] = yfit[i];
                     }
-
                     graphX3[0] = analysis.IsoORfrequency;
                     graphX3[1] = analysis.IsoORfrequency;
-
                     gvPinDensity->update (graphX, graphY, 0);
                     gvPinDensity->update (graphX2, graphY2, 1);
                     gvPinDensity->update (graphX3, graphY3, 2);
                 }
+                */
 
-                { // Spatial Frequency Preference map
+                { // V2 OR preference map
+
+                    VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[3]);
+                    avm->updateData (&analysis2.orPref);
+                    avm->clearAutoscaleColour();
+                }
+
+                { // V2 Spatial Frequency Preference map
 
                     VdmPtr avm = (VdmPtr)v1.getVisualModel (grids2[4]);
-                    avm->updateData (&analysis.sfPref);
+                    avm->updateData (&analysis2.sfPref);
                     avm->clearAutoscaleColour();
                 }
 

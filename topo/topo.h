@@ -21,7 +21,7 @@ class Network{
         this->conf = conf;
     };
 
-    virtual void stepHidden(void){
+    virtual void stepHidden(bool){
         // overwrite this in derived classes to expose the hidden transforms within a network (e.g., thalamic processes between sensors and cortex) to other objects that have a pointer to the network
     }
 

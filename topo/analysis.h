@@ -74,9 +74,6 @@ class orientationPinwheelDensity {
 
         int nFreq = Freq.size();
 
-
-
-
         for(unsigned int i=0;i<nOr;i++){
             theta[i] = i*M_PI/(double)nOr;
         }
@@ -89,7 +86,7 @@ class orientationPinwheelDensity {
                 for(unsigned int k=0;k<nFreq;k++){
                     float sf = Freq[k]/Net->spatialScale;
                     In->Grating(theta[i],phase,sf,1.0);
-                    Net->stepHidden();
+                    Net->stepHidden(false);
                     Out->zero_X();
                     Out->step(aff);
                     for(int l=0;l<n;l++){
@@ -238,7 +235,7 @@ class orientationPinwheelDensity {
     }
 
 
-    std::vector<float> updateIsoORfrequencyEstimate(void){
+    std::vector<float> updateIsoORfrequencyEstimate(bool showfft){
 
         // ANALYSIS STEP 5. ESTIMATE ISO-ORIENTATION COLUMN SPACING
 
@@ -247,11 +244,11 @@ class orientationPinwheelDensity {
 
         // Get frequency histogram from response to 0-90 degrees
         cv::Mat I1 = CHM.getDifferenceImage(orResponseSampled[0],orResponseSampled[2]);
-        std::vector<std::vector<float> > h1 = CHM.fft(I1, nBins, gaussBlur, true);
+        std::vector<std::vector<float> > h1 = CHM.fft(I1, nBins, gaussBlur, showfft);
 
         // Get frequency histogram from response to 45-135 degrees
         cv::Mat I2 = CHM.getDifferenceImage(orResponseSampled[1],orResponseSampled[3]);
-        std::vector<std::vector<float> > h2 = CHM.fft(I2, nBins, gaussBlur, true);
+        std::vector<std::vector<float> > h2 = CHM.fft(I2, nBins, gaussBlur, showfft);
 
         // add together two histograms (maybe should be done before combining?)
         binVals = h2[0];      // get histogram bin mid-values

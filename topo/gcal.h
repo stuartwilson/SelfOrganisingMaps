@@ -131,7 +131,7 @@ class gcal : public Network<FLT> {
 
     }
 
-    void stepHidden(void){
+    void stepHidden(bool learning){
         LGN_ON.step();
         LGN_OFF.step();
     }
@@ -171,18 +171,20 @@ class gcal : public Network<FLT> {
                 IN.X = HCM.X;
             }
         }
-        stepHidden();
+        //stepHidden(false);
     }
 
-    void stepCortex(void){
+    void stepCortex(bool learning){
         CX.zero_X();
         for(unsigned int j=0;j<settle;j++){
             CX.step();
         }
-        for(unsigned int p=0;p<CX.Projections.size();p++){ CX.Projections[p].learn(); }
-        CX.renormalize();
-        if (homeostasis){ CX.homeostasis(); }
-        time++;
+        if(learning){
+            for(unsigned int p=0;p<CX.Projections.size();p++){ CX.Projections[p].learn(); }
+            CX.renormalize();
+            if (homeostasis){ CX.homeostasis(); }
+            time++;
+        }
     }
 
     void save(std::string filename){

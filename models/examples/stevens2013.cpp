@@ -37,6 +37,7 @@ int main(int argc, char **argv){
 
     unsigned int nBlocks = conf.getUInt ("blocks", 100);
     unsigned int steps = conf.getUInt("steps", 100);
+    bool showFFT = conf.getBool("showFFT", false);
 
     // Creates the network
     gcal Net(conf);
@@ -86,7 +87,8 @@ int main(int argc, char **argv){
 
                 for(unsigned int i=0;i<steps;i++){
                     Net.stepAfferent(INTYPE);
-                    Net.stepCortex();
+                    Net.stepHidden(true);
+                    Net.stepCortex(true);
                 }
 
                 // DO ORIENTATION MAP ANALYSIS
@@ -94,10 +96,10 @@ int main(int argc, char **argv){
                 analysis.updateORpreferences();
                 analysis.updateIsoORcontoursPrefs();
                 analysis.updateROIpinwheelCount();
-                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate();
+                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate(showFFT);
                 analysis.updatePinwheelDensity();
 
-                std::cout<<"steps: "<<b*steps<<std::endl;
+                std::cout<<"steps: "<<Net.time<<std::endl;
                 analysis.printPinwheelDensity();
 
                 // SAVE METRIC INFO
@@ -261,7 +263,8 @@ int main(int argc, char **argv){
                 for(unsigned int i=0;i<steps;i++){
 
                     Net.stepAfferent(INTYPE);
-                    Net.stepCortex();
+                    Net.stepHidden(true);
+                    Net.stepCortex(true);
 
                     // UPDATE DISPLAYS
                     if(Net.time%plotevery==0){
@@ -315,14 +318,14 @@ int main(int argc, char **argv){
 
                 }
 
-                std::cout<<"steps: "<<b*steps<<std::endl;
+                std::cout<<"steps: "<<Net.time<<std::endl;
 
                 // DO ORIENTATION MAP ANALYSIS
                 analysis.updateORresponses();
                 analysis.updateORpreferences();
                 analysis.updateIsoORcontoursPrefs();
                 analysis.updateROIpinwheelCount();
-                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate();
+                std::vector<float> fitCoeffs = analysis.updateIsoORfrequencyEstimate(showFFT);
                 analysis.updatePinwheelDensity();
                 analysis.printMetricInfo();
 
