@@ -62,12 +62,9 @@ public:
     std::vector<double> weightPlot;            // for constructing activity plots
     bool normalizeAlphas;            // whether to normalize learning rate by individual unit connection density
 
+    Projection(std::vector<Flt*> fSrc, std::vector<Flt*> fDst, morph::HexGrid* hgSrc, morph::HexGrid* hgDst, Flt radius, Flt strength, Flt alpha, Flt sigma, bool normalizeAlphas, Flt jitter){
 
-    Projection(std::vector<Flt*> fSrc, std::vector<Flt*> fDst, morph::HexGrid* hgSrc, morph::HexGrid* hgDst, Flt radius, Flt strength, Flt alpha, Flt sigma, bool normalizeAlphas){
-
-    /*
-        Initialise the class with random weights (if sigma>0, the weights have a Gaussian pattern, else uniform random)
-    */
+        // Initialise the class with random weights (if sigma>0, the weights have a Gaussian pattern, else uniform random)
 
         this->fSrc = fSrc;
         this->fDst = fDst;
@@ -97,9 +94,11 @@ public:
     // initialize connections for each destination sheet unit
     #pragma omp parallel for
         for(unsigned int i=0;i<nDst;i++){
+            Flt jitterx = jitter * (morph::Tools::randDouble()-0.5);
+            Flt jittery = jitter * (morph::Tools::randDouble()-0.5);
             for(unsigned int j=0;j<nSrc;j++){
-                Flt dx = (hgSrc->vhexen[j]->x-hgDst->vhexen[i]->x);
-                Flt dy = (hgSrc->vhexen[j]->y-hgDst->vhexen[i]->y);
+                Flt dx = (hgSrc->vhexen[j]->x+jitterx-hgDst->vhexen[i]->x);
+                Flt dy = (hgSrc->vhexen[j]->y+jittery-hgDst->vhexen[i]->y);
                 Flt distSquared = dx*dx+dy*dy;
                 if (distSquared<radiusSquared){
                     counts[i]++;
@@ -114,12 +113,14 @@ public:
             }
             norms[i] = 1.0/(Flt)counts[i];
             alphas[i] = alpha;
-        if(normalizeAlphas){
-            alphas[i] *= norms[i];
-        }
+            if(normalizeAlphas){
+                alphas[i] *= norms[i];
+            }
 
+        }
     }
-    }
+
+
 
     void getWeightedSum(void){
     /*
@@ -132,6 +133,13 @@ public:
                 field[i] += *fSrc[srcId[i][j]]*weights[i][j];
             }
             field[i] *= strength;
+        }
+    }
+
+
+    void setFieldToWeights(int i){
+        for(unsigned int j=0;j<counts[i];j++){
+            *fSrc[srcId[i][j]] = weights[i][j];
         }
     }
 
@@ -231,7 +239,12 @@ public:
 
 
     void addProjection(std::vector<Flt*> inXptr, morph::HexGrid* hgSrc, float radius, float strength, float alpha, float sigma, bool normalizeAlphas){
-        Projections.push_back(Projection<Flt>(inXptr, this->Xptr, hgSrc, this->hg, radius, strength, alpha, sigma, normalizeAlphas));
+        Projections.push_back(Projection<Flt>(inXptr, this->Xptr, hgSrc, this->hg, radius, strength, alpha, sigma, normalizeAlphas, 0.0));
+    }
+
+
+    void addProjection(std::vector<Flt*> inXptr, morph::HexGrid* hgSrc, float radius, float strength, float alpha, float sigma, bool normalizeAlphas, float jitter){
+        Projections.push_back(Projection<Flt>(inXptr, this->Xptr, hgSrc, this->hg, radius, strength, alpha, sigma, normalizeAlphas, jitter));
     }
 
     void zero_X (void) {
@@ -768,7 +781,17 @@ public:
         step();
     }
 
-
+    void stepPreloaded(int p, float offx, float offy){ // should supply xoff,yoff in sheet coords and convert inside this function really.
+        int k=0;
+        for(int i=0;i<C.nx;i++){
+            for(int j=0;j<C.ny;j++){
+                int ind = (patternsWid + offy + i)*patternsWid + offx + j;
+                C.vsquare[k].X = PreLoadedPatterns[p][ind];
+                k++;
+            }
+        }
+        step();
+    }
 
     void stepPreloaded(void){
         int p = floor(morph::Tools::randDouble()*PreLoadedPatterns.size());

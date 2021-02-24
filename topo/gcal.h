@@ -63,6 +63,7 @@ class gcal : public Network<FLT> {
         inhibSigma = conf.getFloat ("inhibSigma", 0.075) * spatialScale;
         LGNCenterSigma = conf.getFloat ("LGNCenterSigma", 0.037) * spatialScale;
         LGNSurroundSigma = conf.getFloat ("LGNSuroundSigma", 0.150) * spatialScale;
+        float TCjitter = conf.getFloat ("TCjitter", 0.0) * spatialScale;
 
 
         bool normAlphas = true;
@@ -116,8 +117,8 @@ class gcal : public Network<FLT> {
         CX.init();
         CX.allocate();
 
-        CX.addProjection(LGN_ON.Xptr, LGN_ON.hg, afferRadius, afferStrength*0.5, afferAlpha, afferSigma, normAlphas);
-        CX.addProjection(LGN_OFF.Xptr, LGN_OFF.hg, afferRadius, afferStrength*0.5, afferAlpha, afferSigma, normAlphas);
+        CX.addProjection(LGN_ON.Xptr, LGN_ON.hg, afferRadius, afferStrength*0.5, afferAlpha, afferSigma, normAlphas, TCjitter);
+        CX.addProjection(LGN_OFF.Xptr, LGN_OFF.hg, afferRadius, afferStrength*0.5, afferAlpha, afferSigma, normAlphas, TCjitter);
         CX.addProjection(CX.Xptr, CX.hg, excitRadius, excitStrength, excitAlpha, excitSigma, normAlphas);
         CX.addProjection(CX.Xptr, CX.hg, inhibRadius, inhibStrength, inhibAlpha, inhibSigma, normAlphas);
 
