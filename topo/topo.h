@@ -254,6 +254,19 @@ public:
         }
     }
 
+    void clip_X(Flt lower, Flt upper){
+        #pragma omp parallel for
+        for (unsigned int hi=0; hi<this->nhex; ++hi) {
+            if(this->X[hi]>upper){
+                this->X[hi]=upper;
+            }
+            if(this->X[hi]<lower){
+                this->X[hi]=lower;
+            }
+
+        }
+    }
+
     void norm_X (void) {
         Flt maxVal = -1e9;
         #pragma omp parallel for
@@ -748,6 +761,7 @@ public:
         int k=0;
         for(int i=0;i<nPatterns;i++){
             for(int j=0;j<patternsWid*patternsWid;j++){
+                //if((tmp[k]<0.0) || (tmp[k]>1.0)){ std::cout<<"preloaded pattern with bad value: pixel "<<k<<", val: "<<tmp[k]<<std::endl; }
                 PreLoadedPatterns[i][j] = tmp[k];
                 k++;
             }
