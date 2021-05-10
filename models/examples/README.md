@@ -2,8 +2,9 @@
 
 Implementation of GCAL model reported in Stevens et al., (2013) J. Neurosci. paper. (https://www.jneurosci.org/content/33/40/15747)
 
-First clone morphologica into the SelfOrganisingMaps directory (https://github.com/ABRG-Models/morphologica), then build in the usual cmake way
+First clone morphologica into the SelfOrganisingMaps/models/examples directory (https://github.com/ABRG-Models/morphologica), then build in the usual cmake way
 
+cd SelfOrganisingMaps/models/examples
 mkdir build
 cd build
 cmake ..
@@ -13,7 +14,7 @@ cd ..
 Then run model using e.g., 
 
 ```
-./build/SelfOrganisingMaps configs/gcal.json logdir 1 1 1
+./build/stevens configs/gcal.json logdir 1 1 1
 ```
 
 The final 3 numbers are
