@@ -87,17 +87,42 @@ include_directories(BEFORE ${MORPH_INCLUDE_PATH})
 #
 
 # 
-add_executable(gcalV2 gcalV2.cpp)
+add_executable(antolik2011 antolik2011.cpp)
 # Set compiler definitions. The size of our floats and the option to compile in the realtime visualization.
-target_compile_definitions(gcalV2 PUBLIC FLT=float COMPILE_PLOTTING)
+target_compile_definitions(antolik2011 PUBLIC FLT=float COMPILE_PLOTTING)
+
 
 # Morphologica code requires a number of libraries, collected into 'CORE' and 'GL'.
 set(MORPH_LIBS_CORE ${ARMADILLO_LIBRARY} ${ARMADILLO_LIBRARIES} ${HDF5_C_LIBRARIES} ${LAPACK_LIBRARIES} jsoncpp_lib)
 set(MORPH_LIBS_GL ${OpenCV_LIBS} OpenGL::GL Freetype::Freetype glfw)
-target_link_libraries(gcalV2 ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+target_link_libraries(antolik2011 ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+
+
+
+add_executable(activity activity.cpp)
+target_compile_definitions(activity PUBLIC FLT=float COMPILE_PLOTTING)
+target_link_libraries(activity ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+
+
+add_executable(connectivity connectivity.cpp)
+target_compile_definitions(connectivity PUBLIC FLT=float COMPILE_PLOTING)
+target_link_libraries(connectivity ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+
+add_executable(measuremaps measuremaps.cpp)
+target_compile_definitions(measuremaps PUBLIC FLT=float COMPILE_PLOTING)
+target_link_libraries(measuremaps ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+
+add_executable(maps maps.cpp)
+target_compile_definitions(maps PUBLIC FLT=float COMPILE_PLOTING)
+target_link_libraries(maps ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+
 
 if(OpenMP_FOUND)
   target_link_libraries(gcalV2 OpenMP::OpenMP_CXX)
+  target_link_libraries(activity OpenMP::OpenMP_CXX)
+  target_link_libraries(connectivity OpenMP::OpenMP_CXX)
+  target_link_libraries(measuremaps OpenMP::OpenMP_CXX)
+  target_link_libraries(maps OpenMP::OpenMP_CXX)
 endif()
 
 # For debugging of variables:
