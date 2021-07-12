@@ -39,6 +39,10 @@ for f in listdir(dir):
         print('added: '+dir+'/'+f)
         n+=1
 
+
+print(P.shape)
+print(n)
+
 Pscale = np.max(P)-np.min(P)
 P = (P-np.min(P))/Pscale
 
