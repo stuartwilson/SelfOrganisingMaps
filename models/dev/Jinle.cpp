@@ -356,7 +356,7 @@ int main(int argc, char **argv){
 
 
 
-
+#ifdef COMPILE_PLOTTING
     // SETUP PLOTS
     std::chrono::steady_clock::time_point lastrender = std::chrono::steady_clock::now();
 
@@ -525,7 +525,7 @@ int main(int argc, char **argv){
                                              morph::colour::black, morph::VisualFont::VeraSerif, 0.1, 56);
     hgvSFpref2.hexVisMode = morph::HexVisMode::Triangles;
 
-
+#endif
 
 
     float speed = conf.getFloat ("speed", 1.0);
@@ -567,7 +567,7 @@ int main(int argc, char **argv){
                     Net.CX2.step();
                     Net.decayX();
 
-                    if (1) {
+#ifdef COMPILE_PLOTTING
 
                         { // afferent display
                             VdmPtr avm = (VdmPtr) v1.getVisualModel(grids1[0]);
@@ -606,7 +606,7 @@ int main(int argc, char **argv){
                             lastrender = std::chrono::steady_clock::now();
                         }
 
-                    }
+#endif
                 } // ending duration
 
                 Net.CX.Projections[0].learn();
@@ -1269,7 +1269,7 @@ int main(int argc, char **argv){
 
 
 
-
+#ifdef COMPILE_PLOTTING
 
             // UPDATE MAP DISPLAYS
             { // V1 OR pref display
@@ -1400,7 +1400,7 @@ int main(int argc, char **argv){
                     gvPhaseResponse2->update(graphX, graphY2[i], i);
                 }
             }
-
+#endif
 
             {  //calculate mean response (CX)
 
@@ -1503,6 +1503,8 @@ int main(int argc, char **argv){
             data2.add_contained_vals(path2.str().c_str(), mean_resp2);
 
 
+
+#ifdef COMPILE_PLOTTING
             { // V2 OR preference map
 
                 VdmPtr avm = (VdmPtr) v1.getVisualModel(grids2[3]);
@@ -1536,7 +1538,7 @@ int main(int argc, char **argv){
             framecount++;
             }
             */
-
+#endif
             // SAVE NETWORK WEIGHTS
             std::stringstream ss;
             ss << logpath << "/weights.h5";
