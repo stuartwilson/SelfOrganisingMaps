@@ -1,0 +1,96 @@
+{
+
+
+	"IN_svgpath" : "../boundaries/circle.svg",
+	"LGN_svgpath" : "../boundaries/circle.svg",
+	"CX_svgpath" : "../boundaries/circle.svg",
+	"homeostasis" : true,	
+	"blocks": 21000,
+	"steps": 2,
+	"settle": 16,
+	// "beta" : 0.998
+	// value(lambda) in antolik
+	"beta" : 0.700,
+	"lambda" : 0.02,
+	"mu" : 0.003,
+	"thetaInit" : 0.00,
+	"xRange" : 0.75,
+	"yRange" : 0.75,
+	// "afferStrength" : 1.5,
+
+	"afferStrength" : 4.0,
+	"excitStrength" : 0.0,
+	"inhibStrength" : -0.0,
+	//"retinaLGNstrength" : 2.0,
+	"retinaLGNstrength" : 7.0,
+	// "gainControlStrength" : 2.0, original
+	// gain control of neurons,
+	//"gainControlStrength" : 3.0, modify from antolik
+	//"gainControlOffset" : 0.5,
+	"gainControlStrength" : 1.2,
+	"gainControlOffset" : 0.22,
+	"afferAlpha" : 0.1,
+	"excitAlpha" : 0.0,
+	"inhibAlpha" : 0.3,
+	"v1v2alpha" : 0.0,    //?
+	"v2exalpha" : 0.0,    //?
+	"v2inalpha" : 0.3,    //?
+	"v2v1exalpha" : 0.0,
+	"v2v1inalpha" : 0.0,
+	"amplitude" : 1.0,
+	"sigmaA" : 0.0100,
+	"sigmaB" : 0.0010,
+	"afferRadius" : 0.27,
+	"excitRadius" : 0.1,
+	"inhibRadius" : 0.23,
+	//"afferSigma" : 0.27,
+	"afferSigma" : 0.20,
+	//"excitSigma" : 0.025,
+	"excitSigma" : 0.400,
+	//"inhibSigma" : 0.075,
+	"inhibSigma" : 0.460,
+	"v2afferSigma" : 0.05,
+	"v2excitSigma" : 0.400,
+	"v2inhibSigma" : 0.460,
+	"f_excitSigma" : 0.01,
+	"f_inhibSigma" : 2.5,
+	//"LGNCenterSigma": 0.037,
+	//"LGNSuroundSigma": 0.150,
+	// differences-of-gaussians,
+	"LGNCenterSigma": 0.070,
+	"LGNSuroundSigma": 0.200,
+	"patterns" : "../input/images/natural.h5",
+	"win_height" : 800,
+	"win_width" : 1200,
+	"plotevery" : 10,
+	"scale" : 0.4,
+	"gratingWidth" : 7.5,
+	"sampleRange" : 0.5,
+	"polyOrder" : 4,
+	"gaussBlur" : 0,
+	"saveplots" : true,
+	"patternSampleRows" : 90,
+	"patternSampleCols" : 90,
+	"freq" : [14.0,16.0,18.0,20.0,22.0,24.0],
+	//"v1v2strength" : 1.0,
+	"v1v2strength" : 2.5,
+	//"v2exstrength" : 1.7,
+	"v2exstrength" : 1.5,
+	//"v2instrength" : -1.5,
+	"v2instrength" : -1.5,
+	//"v2v1exstrength" : 0.05,
+	"v2v1exstrength" : 0.14,
+	//"v2v1instrength" : -0.001,
+	"v2v1instrength" : -4.6,
+	"decayConstant" : 0.3,
+	"noiseScale" : 0.02,
+	"TCjitter" : 0.27,
+	"speed" : 20.0,
+	"plotUnits" : [0,1,2]
+
+}
+
+# NOTE THAT THESE PARAMETER VALUES ARE IDENTICAL TO THOSE REPORTED IN THE STEVENS ET AL. PAPER, EXCEPT FOR thetaInit, retinaLGNstrenfgtn, gainControlStrength, AND gainControlOffset, WHICH ARE 0.15, 14, 0.6, and 0.11 IN THE PAPER, RESPECTIVELY
+
+#lambda param (after Stevens) is zeta in antolik paper
+#homeostatic update eq is stated backward in antolik (c.f., beta and phi), so I think the given value for phi 0.002 needs inverting, i.e., beta=1-0.002=0.998

@@ -98,6 +98,10 @@ set(MORPH_LIBS_GL ${OpenCV_LIBS} OpenGL::GL Freetype::Freetype glfw)
 target_link_libraries(antolik2011 ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
 
 
+add_executable(Jinle Jinle.cpp)
+target_compile_definitions(Jinle PUBLIC FLT=float COMPILE_PLOTTING)
+target_link_libraries(Jinle ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+
 
 add_executable(activity activity.cpp)
 target_compile_definitions(activity PUBLIC FLT=float COMPILE_PLOTTING)
@@ -118,7 +122,8 @@ target_link_libraries(maps ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
 
 
 if(OpenMP_FOUND)
-  target_link_libraries(gcalV2 OpenMP::OpenMP_CXX)
+  target_link_libraries(antolik2011 OpenMP::OpenMP_CXX)
+  target_link_libraries(Jinle OpenMP::OpenMP_CXX)
   target_link_libraries(activity OpenMP::OpenMP_CXX)
   target_link_libraries(connectivity OpenMP::OpenMP_CXX)
   target_link_libraries(measuremaps OpenMP::OpenMP_CXX)
