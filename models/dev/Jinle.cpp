@@ -717,11 +717,12 @@ int main(int argc, char **argv){
                 data.add_contained_vals (path.str().c_str(), analysistimes);
                 */
 
+#ifdef COMPILE_PLOTTING
                 if (saveplots) {
                     savePngs(logpath, "model", framecount, v1);
                     framecount++;
                 }
-
+#endif
             }
 
 
