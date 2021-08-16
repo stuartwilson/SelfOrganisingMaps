@@ -669,30 +669,37 @@ int main(int argc, char **argv){
             frequencies_v2.push_back(IsoORfrequency2);
             analysistimes.push_back(Net.time);
 
-            std::stringstream fname;
-            fname << logpath << "/measures_2.h5";
-            morph::HdfData data(fname.str());
-            std::stringstream path;
-            path.str("");
-            path.clear();
-            path << "/frequency_v1";
-            data.add_contained_vals(path.str().c_str(), frequencies_v1);
-            path.str("");
-            path.clear();
-            path << "/frequency_v2";
-            data.add_contained_vals(path.str().c_str(), frequencies_v2);
-            path.str("");
-            path.clear();
-            path << "/pincount_v1";
-            data.add_contained_vals(path.str().c_str(), pincounts_v1);
-            path.str("");
-            path.clear();
-            path << "/pincount_v2";
-            data.add_contained_vals(path.str().c_str(), pincounts_v2);
-            path.str("");
-            path.clear();
-            path << "/times";
-            data.add_contained_vals(path.str().c_str(), analysistimes);
+            {
+                std::stringstream measure_fname;
+                measure_fname << logpath << "/measures_2.h5";
+                morph::HdfData data(measure_fname.str());
+                std::stringstream path;
+                path.str("");
+                path.clear();
+                path << "/frequency_v1";
+                data.add_contained_vals(path.str().c_str(), frequencies_v1);
+                path.str("");
+                path.clear();
+                path << "/frequency_v2";
+                data.add_contained_vals(path.str().c_str(), frequencies_v2);
+                path.str("");
+                path.clear();
+                path << "/pincount_v1";
+                data.add_contained_vals(path.str().c_str(), pincounts_v1);
+                path.str("");
+                path.clear();
+                path << "/pincount_v2";
+                data.add_contained_vals(path.str().c_str(), pincounts_v2);
+                path.str("");
+                path.clear();
+                path << "/times";
+                data.add_contained_vals(path.str().c_str(), analysistimes);
+            }
+
+
+
+
+
 
             { //calculate F0
                 // for(int i=0;i<i<Net.CX.nhex;i++){
@@ -1481,28 +1488,28 @@ int main(int argc, char **argv){
 
 
 
-
-            std::stringstream MR_index;
-            MR_index << logpath << "/mr_index.h5";
-            morph::HdfData data2(MR_index.str());
-            std::stringstream path2;
-            path2.str("");
-            path2.clear();
-            path2 << "/MR_1";
-            data2.add_contained_vals(path2.str().c_str(), MR_1);
-            path2.str("");
-            path2.clear();
-            path2 << "/MR_2";
-            data2.add_contained_vals(path2.str().c_str(), MR_2);
-            path2.str("");
-            path2.clear();
-            path2 << "/mean_resp";
-            data2.add_contained_vals(path2.str().c_str(), mean_resp);
-            path2.str("");
-            path2.clear();
-            path2 << "/mean_resp2";
-            data2.add_contained_vals(path2.str().c_str(), mean_resp2);
-
+            {
+                std::stringstream MR_index;
+                MR_index << logpath << "/mr_index.h5";
+                morph::HdfData data2(MR_index.str());
+                std::stringstream path2;
+                path2.str("");
+                path2.clear();
+                path2 << "/MR_1";
+                data2.add_contained_vals(path2.str().c_str(), MR_1);
+                path2.str("");
+                path2.clear();
+                path2 << "/MR_2";
+                data2.add_contained_vals(path2.str().c_str(), MR_2);
+                path2.str("");
+                path2.clear();
+                path2 << "/mean_resp";
+                data2.add_contained_vals(path2.str().c_str(), mean_resp);
+                path2.str("");
+                path2.clear();
+                path2 << "/mean_resp2";
+                data2.add_contained_vals(path2.str().c_str(), mean_resp2);
+            }
 
 
 #ifdef COMPILE_PLOTTING
