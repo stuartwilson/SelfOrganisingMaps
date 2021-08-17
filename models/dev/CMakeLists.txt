@@ -99,35 +99,35 @@ target_link_libraries(antolik2011 ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
 
 
 add_executable(Jinle Jinle.cpp)
-target_compile_definitions(Jinle PUBLIC FLT=float COMPILE_PLOTTING)
+target_compile_definitions(Jinle PUBLIC FLT=float)
 target_link_libraries(Jinle ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
 
 
-add_executable(activity activity.cpp)
-target_compile_definitions(activity PUBLIC FLT=float COMPILE_PLOTTING)
-target_link_libraries(activity ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+#add_executable(activity activity.cpp)
+#target_compile_definitions(activity PUBLIC FLT=float COMPILE_PLOTTING)
+#target_link_libraries(activity ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
 
 
-add_executable(connectivity connectivity.cpp)
-target_compile_definitions(connectivity PUBLIC FLT=float COMPILE_PLOTING)
-target_link_libraries(connectivity ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+#add_executable(connectivity connectivity.cpp)
+#target_compile_definitions(connectivity PUBLIC FLT=float COMPILE_PLOTING)
+#target_link_libraries(connectivity ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
 
-add_executable(measuremaps measuremaps.cpp)
-target_compile_definitions(measuremaps PUBLIC FLT=float COMPILE_PLOTING)
-target_link_libraries(measuremaps ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+#add_executable(measuremaps measuremaps.cpp)
+#target_compile_definitions(measuremaps PUBLIC FLT=float COMPILE_PLOTING)
+#target_link_libraries(measuremaps ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
 
-add_executable(maps maps.cpp)
-target_compile_definitions(maps PUBLIC FLT=float COMPILE_PLOTING)
-target_link_libraries(maps ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
+#add_executable(maps maps.cpp)
+#target_compile_definitions(maps PUBLIC FLT=float COMPILE_PLOTING)
+#target_link_libraries(maps ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL})
 
 
 if(OpenMP_FOUND)
   target_link_libraries(antolik2011 OpenMP::OpenMP_CXX)
   target_link_libraries(Jinle OpenMP::OpenMP_CXX)
-  target_link_libraries(activity OpenMP::OpenMP_CXX)
-  target_link_libraries(connectivity OpenMP::OpenMP_CXX)
-  target_link_libraries(measuremaps OpenMP::OpenMP_CXX)
-  target_link_libraries(maps OpenMP::OpenMP_CXX)
+  #target_link_libraries(activity OpenMP::OpenMP_CXX)
+  #target_link_libraries(connectivity OpenMP::OpenMP_CXX)
+  #target_link_libraries(measuremaps OpenMP::OpenMP_CXX)
+  #target_link_libraries(maps OpenMP::OpenMP_CXX)
 endif()
 
 # For debugging of variables:
