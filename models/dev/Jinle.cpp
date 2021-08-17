@@ -148,7 +148,7 @@ public:
             std::vector<FLT> proj;
             std::stringstream ss; ss<<"proj_2_"<<p;
             data.read_contained_vals (ss.str().c_str(), proj);
-            CX.Projections[p].setWeights(proj);
+            CX2.Projections[p].setWeights(proj);
         }
         std::cout<<"Loaded weights and modified time to " << time << std::endl;
     }

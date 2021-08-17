@@ -787,7 +787,7 @@ public:
         int k=0;
         for(int i=0;i<C.nx;i++){
             for(int j=0;j<C.ny;j++){
-                int ind = (patternsWid + offy + i)*patternsWid + offx + j;
+                int ind = (offy + i)*patternsWid + offx + j;
                 C.vsquare[k].X = PreLoadedPatterns[p][ind];
                 k++;
             }
@@ -799,7 +799,7 @@ public:
         int k=0;
         for(int i=0;i<C.nx;i++){
             for(int j=0;j<C.ny;j++){
-                int ind = (patternsWid + offy + i)*patternsWid + offx + j;
+                int ind = (offy + i)*patternsWid + offx + j;
                 C.vsquare[k].X = PreLoadedPatterns[p][ind];
                 k++;
             }

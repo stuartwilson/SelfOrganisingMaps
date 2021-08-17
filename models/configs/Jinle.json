@@ -5,8 +5,8 @@
 	"LGN_svgpath" : "../boundaries/circle.svg",
 	"CX_svgpath" : "../boundaries/circle.svg",
 	"homeostasis" : true,	
-	"blocks": 21000,
-	"steps": 2,
+	"blocks": 200,
+	"steps": 100,
 	"settle": 16,
 	// "beta" : 0.998
 	// value(lambda) in antolik
