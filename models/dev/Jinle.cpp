@@ -154,6 +154,7 @@ public:
     }
 
 
+
 };
 
 
@@ -695,6 +696,7 @@ int main(int argc, char **argv){
                 path << "/times";
                 data.add_contained_vals(path.str().c_str(), analysistimes);
             }
+
 
 
 
@@ -1510,6 +1512,79 @@ int main(int argc, char **argv){
                 path2 << "/mean_resp2";
                 data2.add_contained_vals(path2.str().c_str(), mean_resp2);
             }
+
+            {
+                std::vector<float> X1, Y1;
+                for (unsigned int h = 0; h < Net.CX.nhex; h++) {
+                    X1.push_back(Net.CX.hg->vhexen[h]->x);
+                    Y1.push_back(Net.CX.hg->vhexen[h]->y);
+                }
+
+                std::vector<float> X2, Y2;
+                for (unsigned int h = 0; h < Net.CX2.nhex; h++) {
+                    X2.push_back(Net.CX2.hg->vhexen[h]->x);
+                    Y2.push_back(Net.CX2.hg->vhexen[h]->y);
+                }
+
+
+                std::stringstream map_info;
+                map_info << logpath << "/map_info.h5";
+                morph::HdfData data(map_info.str());
+                std::stringstream path;
+                path.str("");
+                path.clear();
+                path << "/X1";
+                data.add_contained_vals(path.str().c_str(), X1);
+                path.str("");
+                path.clear();
+                path << "/Y1";
+                data.add_contained_vals(path.str().c_str(), Y1);
+                path.str("");
+                path.clear();
+                path << "/X2";
+                data.add_contained_vals(path.str().c_str(), X2);
+                path.str("");
+                path.clear();
+                path << "/Y2";
+                data.add_contained_vals(path.str().c_str(), Y2);
+
+                //OR MAPS
+                path.str("");
+                path.clear();
+                path << "/orPref1";
+                data.add_contained_vals(path.str().c_str(), orPref);
+                path.str("");
+                path.clear();
+                path << "/orSel1";
+                data.add_contained_vals(path.str().c_str(), orSel);
+                path.str("");
+                path.clear();
+                path << "/orPref2";
+                data.add_contained_vals(path.str().c_str(), orPref2);
+                path.str("");
+                path.clear();
+                path << "/orSel2";
+                data.add_contained_vals(path.str().c_str(), orSel2);
+
+                // PH MAPS
+                path.str("");
+                path.clear();
+                path << "/phPref1";
+                data.add_contained_vals(path.str().c_str(), phPref);
+                path.str("");
+                path.clear();
+                path << "/phSel1";
+                data.add_contained_vals(path.str().c_str(), phSel);
+                path.str("");
+                path.clear();
+                path << "/phPref2";
+                data.add_contained_vals(path.str().c_str(), phPref2);
+                path.str("");
+                path.clear();
+                path << "/phSel2";
+                data.add_contained_vals(path.str().c_str(), phSel2);
+            }
+
 
 
 #ifdef COMPILE_PLOTTING
