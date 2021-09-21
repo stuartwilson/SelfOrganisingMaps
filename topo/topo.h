@@ -2,6 +2,7 @@
 #include <morph/HexGrid.h>
 #include <morph/RD_Base.h>
 #include <morph/Config.h>
+#include <morph/rngd.h>
 
 template <class Flt>
 class Network{
@@ -94,8 +95,8 @@ public:
     // initialize connections for each destination sheet unit
     #pragma omp parallel for
         for(unsigned int i=0;i<nDst;i++){
-            Flt jitterx = jitter * (morph::Tools::randDouble()-0.5);
-            Flt jittery = jitter * (morph::Tools::randDouble()-0.5);
+            Flt jitterx = jitter * (morph::randDouble()-0.5);
+            Flt jittery = jitter * (morph::randDouble()-0.5);
             for(unsigned int j=0;j<nSrc;j++){
                 Flt dx = (hgSrc->vhexen[j]->x+jitterx-hgDst->vhexen[i]->x);
                 Flt dy = (hgSrc->vhexen[j]->y+jittery-hgDst->vhexen[i]->y);
@@ -781,8 +782,8 @@ public:
     void stepPreloaded(int p){
 
         // Jitter if the sample width is less than the image width
-        int offx = floor(morph::Tools::randDouble()*(patternsWid-C.nx));
-        int offy = floor(morph::Tools::randDouble()*(patternsWid-C.ny));
+        int offx = floor(morph::randDouble()*(patternsWid-C.nx));
+        int offy = floor(morph::randDouble()*(patternsWid-C.ny));
 
         int k=0;
         for(int i=0;i<C.nx;i++){
@@ -808,7 +809,7 @@ public:
     }
 
     void stepPreloaded(void){
-        int p = floor(morph::Tools::randDouble()*PreLoadedPatterns.size());
+        int p = floor(morph::randDouble()*PreLoadedPatterns.size());
         stepPreloaded(p);
     }
 };

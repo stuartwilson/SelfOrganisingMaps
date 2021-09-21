@@ -12,6 +12,7 @@
 #include <morph/Scale.h>
 #include <morph/Vector.h>
 #include <morph/ShapeAnalysis.h>
+#include <morph/rngd.h>
 
 //#include <omp.h>
 #include <numeric>
@@ -102,10 +103,10 @@ public:
 
     void decayX(void){
         for(int i=0;i<CX.nhex;i++){
-            CX.X[i] = CX.X[i]*decayConstant + oneMinusDecay*CXcpy[i] + (morph::Tools::randDouble()-0.5)*noiseScale; // should be norm distr.
+            CX.X[i] = CX.X[i]*decayConstant + oneMinusDecay*CXcpy[i] + (morph::randDouble()-0.5)*noiseScale; // should be norm distr.
         }
         for(int i=0;i<CX2.nhex;i++){
-            CX2.X[i] = CX2.X[i]*decayConstant + oneMinusDecay*CX2cpy[i] + (morph::Tools::randDouble()-0.5)*noiseScale;
+            CX2.X[i] = CX2.X[i]*decayConstant + oneMinusDecay*CX2cpy[i] + (morph::randDouble()-0.5)*noiseScale;
         }
     }
 
@@ -542,8 +543,8 @@ int main(int argc, char **argv){
 
         for (unsigned int i = 0; i < steps; i++) {
 
-            p = floor(morph::Tools::randDouble() * Net.HCM.PreLoadedPatterns.size());
-            direction = morph::Tools::randDouble() * M_PI * 2.0;
+            p = floor(morph::randDouble() * Net.HCM.PreLoadedPatterns.size());
+            direction = morph::randDouble() * M_PI * 2.0;
 
             for (unsigned int j = 0; j < stimIncs; j++) {
 

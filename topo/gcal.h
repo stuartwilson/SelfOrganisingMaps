@@ -4,6 +4,7 @@
 #include <morph/Vector.h>
 #include <morph/HdfData.h>
 #include <morph/Config.h>
+#include <morph/rngd.h>
 
 class gcal : public Network<FLT> {
 
@@ -147,9 +148,9 @@ class gcal : public Network<FLT> {
                 std::vector<double> sB(nGauss);
                 std::vector<double> amp(nGauss);
                 for(int i=0;i<nGauss;i++){
-                    x[i] = (morph::Tools::randDouble()-0.5)*xRange;
-                    y[i] = (morph::Tools::randDouble()-0.5)*yRange;
-                    t[i] = morph::Tools::randDouble()*M_PI;
+                    x[i] = (morph::randDouble()-0.5)*xRange;
+                    y[i] = (morph::randDouble()-0.5)*yRange;
+                    t[i] = morph::randDouble()*M_PI;
                     sA[i] = sigmaA;
                     sB[i] = sigmaB;
                     amp[i] = 1.0;
@@ -166,7 +167,7 @@ class gcal : public Network<FLT> {
             } break;
             default:{
                 for(int i=0;i<HCM.C.n;i++){
-                    HCM.C.vsquare[i].X = morph::Tools::randDouble();
+                    HCM.C.vsquare[i].X = morph::randDouble();
                 }
                 HCM.step();
                 IN.X = HCM.X;
